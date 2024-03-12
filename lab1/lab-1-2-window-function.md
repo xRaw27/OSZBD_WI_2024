@@ -415,7 +415,56 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 
 ```sql
---- wyniki ...
+-- SUBQUERY
+select p.id,
+       p.productid,
+       p.productname,
+       p.unitprice,
+       (select avg(p1.unitprice) from product_history p1 where p.categoryid = p1.categoryid) as avg_category_price,
+       (select sum(p1.value) from product_history p1 where p.categoryid = p1.categoryid)     as sum_category_value,
+       (select avg(p1.unitprice)
+        from product_history p1
+        where p.productid = p1.productid
+          and date_part('year', p.date) = date_part('year', p1.date))                        as avg_year_price
+from product_history p;
+
+-- WINDOW FUNCTION
+select p.id,
+       p.productid,
+       p.productname,
+       p.unitprice,
+       avg(unitprice) over (category_window)                                 as avg_category_price,
+       sum(value) over (category_window)                                     as sum_category_value,
+       avg(unitprice) over (partition by productid, date_part('year', date)) as avg_year_price
+from product_history p
+window category_window as (
+        partition by categoryid
+        );
+
+-- JOIN
+select p.id,
+       p.productid,
+       p.productname,
+       p.unitprice,
+       avg(p1.unitprice) as avg_category_price,
+       sum(p1.value)     as sum_category_value,
+       avg(p2.unitprice) as avg_year_price
+from product_history p
+         cross join product_history p1
+         cross join product_history p2
+where p.categoryid = p1.categoryid
+  and p.productid = p2.productid
+  and date_part('year', p.date) = date_part('year', p2.date)
+group by p.id, p.productid, p.productname, p.unitprice;
+
+/*
+Plan wykonania dla poszczególnych typów zapytań nie różnił się zbytnio
+pomiędzy poszczególnymi bazami danych. Najgorzej wypadało zawsze zapytanie
+z joinem, liczba przetworzonych wierszy to między n^2 a n^3, planer szacuje,
+że będzie ich około 10^14. Nieco lepiej wypada wersja z podzapytaniem, tu liczba
+przetworzonych wierszy jest rzędu n^2, około 10^11. Zdecydowanie najlepiej wypada
+wersja z funkcją okna, Full Scan wykonywany jest tam tylko raz.
+ */
 ```
 
 ---
@@ -527,7 +576,10 @@ order by date;
 ```
 
 ```sql
--- wyniki ...
+/*
+Funkcja 'lag(x)' zwraca wartość kolumny x poprzedniego rekordu w kolejności, a dla pierwszego rekordu wartość NULL.
+Funkcja 'lead(x)' zwraca wartość kolumny x następnego rekordu w kolejności, a dla ostatnego rekordu wartość NULL.
+ */
 ```
 
 
@@ -536,7 +588,38 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+-- POSTGRESQL VERSION
+select p.productid,
+       p.productname,
+       p.categoryid,
+       p.date,
+       p.unitprice,
+       (select p1.unitprice
+        from product_history p1
+        where p1.productid = 1
+          and date_part('year', p1.date) = 2022
+          and p1.date < p.date
+        order by p1.date desc
+        limit 1)
+           as previousprodprice,
+       (select p1.unitprice
+        from product_history p1
+        where p1.productid = 1
+          and date_part('year', p1.date) = 2022
+          and p1.date > p.date
+        order by p1.date
+        limit 1)
+           as nextprodprice
+from product_history p
+where p.productid = 1
+  and date_part('year', p.date) = 2022
+order by p.date;
+
+/*
+Plany wykonania dla wszystkich baz danych są podobne. Zapytanie bez funkcji lag i lead wykorzystujące podzapytania
+wykonuje liczbe operacji rzędu n^2. Znacznie lepiej prezentuje się zapytanie wykorzystujące funkcje okna,
+wykonywany jest tylko jeden Full Scan, co jest zauważalne w dużo szybszym czasie wykonania.
+ */
 ```
 
 ---
