@@ -1,0 +1,23 @@
+version: "1.0"
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      - SA_PASSWORD=Pass@word
+      - ACCEPT_EULA=Y
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./mssql_data:/var/opt/mssql/data
+
+  postgres:
+    image: postgres:14.1
+    environment:
+      - POSTGRES_DB=northwind
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
