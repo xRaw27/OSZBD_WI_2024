@@ -1,0 +1,7 @@
+/northwind_mssql
+/northwind_postgres
+/northwind_sqlite
+
+/mssql_data
+/postgres_data
+/sqlite_data
