@@ -553,7 +553,10 @@ order by date;
 ```
 
 ```sql
--- wyniki ...
+/*
+Funkcja 'lag(x)' zwraca wartość kolumny x poprzedniego rekordu w kolejności, a dla pierwszego rekordu wartość NULL.
+Funkcja 'lead(x)' zwraca wartość kolumny x następnego rekordu w kolejności, a dla ostatnego rekordu wartość NULL.
+ */
 ```
 
 
@@ -562,7 +565,38 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+-- POSTGRESQL VERSION
+select p.productid,
+       p.productname,
+       p.categoryid,
+       p.date,
+       p.unitprice,
+       (select p1.unitprice
+        from product_history p1
+        where p1.productid = 1
+          and date_part('year', p1.date) = 2022
+          and p1.date < p.date
+        order by p1.date desc
+        limit 1)
+           as previousprodprice,
+       (select p1.unitprice
+        from product_history p1
+        where p1.productid = 1
+          and date_part('year', p1.date) = 2022
+          and p1.date > p.date
+        order by p1.date
+        limit 1)
+           as nextprodprice
+from product_history p
+where p.productid = 1
+  and date_part('year', p.date) = 2022
+order by p.date;
+
+/*
+Plany wykonania dla wszystkich baz danych są podobne. Zapytanie bez funkcji lag i lead wykorzystujące podzapytania
+wykonuje liczbe operacji rzędu n^2. Znacznie lepiej prezentuje się zapytanie wykorzystujące funkcje okna,
+wykonywany jest tylko jeden Full Scan, co jest zauważalne w dużo szybszym czasie wykonania.
+ */
 ```
 
 ---
