@@ -434,7 +434,14 @@ from products;
 ```
 
 ```sql
---- wyniki ...
+-- Polecenie row_number() zwraca w obrębie każdej kategorii numer wiersza, posortowany po cenie produktu malejąco.
+-- W przypadku remisów, funkcja row_number() zwraca kolejne numery wierszy w sposób arbitralny, czyli mamy tyle
+-- kolejnych numerów ile jest wierszy w danej kategorii i każdy numer występuje tylko raz.
+-- Polecenie rank() zwraca w obrębie każdej kategorii ranking ceny produktu, posortowany po cenie produktu malejąco.
+-- Różni się od row_number() tym, że przypadku remisów, funkcja rank() zwraca ten sam numer dla wszystkich wierszy o tej 
+-- samej cenie, a następny numer po serii remisów jest taki jakby był jego row_number(), czyli np. 1, 2, 3, 3, 3, 6, 7.
+-- Polecenie dense_rank() różni się od rank() tym, że nie ma przerw w numeracji, czyli jeśli mamy remis to wiersze mają
+-- ten sam numer, ale po serii remisów kolejny numer jest o 1 większy niż poprzedni, czyli np. 1, 2, 3, 3, 3, 4, 5.
 ```
 
 
@@ -443,7 +450,23 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna
 
 ```sql
---- wyniki ...
+select productid,
+       productname,
+       unitprice,
+       categoryid,
+       (select count(*) + 1
+        from products p2
+        where p2.categoryid = p.categoryid
+          and (p2.unitprice > p.unitprice or (p2.unitprice = p.unitprice and p2.productid < p.productid))) as rowno,
+       (select count(*) + 1
+        from products p2
+        where p2.categoryid = p.categoryid
+          and p2.unitprice > p.unitprice)                                                                  as rankprice,
+       (select count(*) + 1
+        from (select distinct p3.unitprice from products p3 where p3.categoryid = p.categoryid) as p2
+        where p2.unitprice > p.unitprice)                                                                  as denserankprice
+from products p
+order by p.unitprice desc;
 ```
 
 
