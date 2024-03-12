@@ -155,7 +155,35 @@ W DataGrip użyj opcji Explain Plan/Explain Analyze
 
 
 ```sql
--- wyniki ...
+select productid, productname, unitprice,
+       (select avg(p.unitprice) from products p) as avg_price
+from products;
+
+select p.productid, p.productname, p.unitprice, avg(p2.unitprice) as avg_price
+from products p
+cross join products p2
+group by p.productid, p.productname, p.unitprice;
+
+select productid, productname, unitprice, avg(unitprice) over () as avg_price
+from products
+
+-- POSTGRES:
+-- Podzapytanie i funkcja okna mają praktycznie taki sam koszt / czas wykonania, przy czym zapytanie z wykorzystaniem
+-- funkcji okna jest krótsze i bardziej czytelne w zapisie.
+-- Aby zrobić join musimy użyć CROSS JOIN, bo jak zrobimy zwykłego joina ON p.productid = p2.productid
+-- to do każdego wiersza dołączymy ten sam wiersz, więc nie damy rady zrobić avg wszystkich produktów w tym wierszu.
+-- Z kolei wykonanie CROSS JOINA powoduje że dla n wierszy w kolumnie mamy n^2 operacji
+--
+-- MS SQL:
+-- W przypadku MS SQL koszt wszystskich sposobów jest porównywalny. Nie mamy n^2 w przypadku CORSS JOINA.
+-- Zapytanie z window function ma w planie tylko jedno wykonanie Full Index Scan (który jest najbardziej kosztowny)
+-- natomiast pozostałe dwa wykonuję Full Index Scan dwa razy i z tego powodu są prawie 2 razy bardziej kosztowne
+-- według planu.
+--
+-- SQLITE:
+-- Biorąc pod uwagę ubogi schemat planu w Sqlite wiemy tylko że każde zapytanie wykonuje 2 razy Full Index Scan
+-- (A przynajmniej znajdują się 2 takie bloki w schemacie) sposób ich ułożenie sugeruje że Sqlite poradził
+-- sobie z CROSS JOINEM i nie zrobił n^2
 ```
 
 ---
