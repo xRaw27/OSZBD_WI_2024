@@ -511,9 +511,10 @@ select productid,
         from products p2
         where p2.categoryid = p.categoryid
           and p2.unitprice > p.unitprice)                                                                  as rankprice,
-       (select count(*) + 1
-        from (select distinct p3.unitprice from products p3 where p3.categoryid = p.categoryid) as p2
-        where p2.unitprice > p.unitprice)                                                                  as denserankprice
+       (select count(distinct p2.unitprice) + 1
+        from products p2
+        where p2.categoryid = p.categoryid
+          and p2.unitprice > p.unitprice)                                                                  as denserankprice
 from products p
 order by p.unitprice desc;
 ```
