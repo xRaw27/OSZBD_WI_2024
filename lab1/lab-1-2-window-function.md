@@ -228,9 +228,14 @@ with products1 as (select p.productid, p.productname, p.unitprice, avg(p1.unitpr
 select productid, productname, unitprice, avg_category_price
 from products1
 where unitprice > avg_category_price
+
+-- W PostgreSQL i SQLite podzapytanie i join wykonuje Full Scan na tabeli products dwukrotnie, natomiast funkcja 
+-- okna tylko jeden raz. W PostgresSQL CROSS JOIN powoduje wykonanie pętli w pętli czyli mamy n^2 co jest bardzi
+-- niekorzystne dla kosztu zapytania. W MSSQL wyniki są podobne, ale dla joina wykonywana jest optymalizacja i jego 
+-- plan wykonania jest identyczny jak w przypadku funkcji okna (czyli bez n^2). Wynika stąd, że najlepszym rozwiązaniem 
+-- dla powyższego problemu jest zastosowanie funkcji okna, ponieważ daje najlepsze wyniki.
 ```
 
-W PostgreSQL i SQLite podzapytanie i join wykonuje Full Scan na tabeli products dwukronie, natomiast funkcja okna tylko jeden raz. W MSSQL wyniki są podobne, ale dla joina wykonywana jest optymalizacja i jego plan wykonania jest identyczny jak w przypadku funkcji okna. Wynika stąd, że najlepszym rozwiązaniem dla powyższego problemu jest zastosowanie funkcji okna, ponieważ daje najlepsze wyniki.
 
 ---
 # Zadanie 5 - przygotowanie
@@ -336,7 +341,11 @@ where 1=1;
 Wykonaj polecenia: `select count(*) from product_history`,  potwierdzające wykonanie zadania
 
 ```sql
---- wyniki ...
+-- Obie bazy mają po 2310000 wierszy. Ciekawym spostrzeżeniem jest to, że w przypadku SQL Servera zapytanie to
+-- trwało tylko 100 ms, a w przypadku PostgresSQL aż 3 sekundy na Macbook-u z M2, natomiast na Macbook-u z intelem i7
+-- te same zapytania zachowywały się w odwrotny sposób. W przypadku SQL Servera zapytanie trwało 11 sekund, a w przypadku
+-- PostgresSQL tylko 400 ms. Używaliśmy tego samego dockerfile'a, więc różnice w czasie wykonania zapytania mogą wynikać
+-- z różnic w implementacji bazy danych dla różnej architektury procesora.
 ```
 
 ---
@@ -354,7 +363,34 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 
 ```sql
---- wyniki ...
+select id, productid, productname, unitprice,
+       (select avg(p.unitprice) from product_history p) as avg_price
+from product_history;
+
+select p.id, p.productid, p.productname, p.unitprice, avg(p2.unitprice) as avg_price
+from product_history p
+cross join product_history p2
+group by p.id, p.productid, p.productname, p.unitprice;
+
+select id, productid, productname, unitprice, avg(unitprice) over () as avg_price
+from product_history;
+
+-- POSTGRES:
+-- Podzapytanie - 2 full scany jeden pełny drugi trochę zoptymalizowany przez postrgresa przez co przechodzi około 1/3 wierszy.
+-- Join - dalej nie zoptymalizował CROSS JOINA i robi n^2, według planu, bo z mierzeniem rzeczywistego czasu może być ciężko 
+-- jeśli nie mamy kilku dni.
+-- Window function - według analizy przechodzi tylko raz full scanem, a jednak jest około 4 razy wolniejszy od podzapytania
+-- jeśli chodzi o rzeczywisty czas wykonania.
+--
+-- MSSQL:
+-- Dla podzapytania i window function plan jest podobny jak w w przypadku PostgresSQL, czyli 2 full scany dla podzapytania
+-- oraz 1 full scan dla window function, przy czym tutaj rzeczywisty czas wykonania jest nieznacznie krótszy dla window function.
+-- Join natomiast został zoptymalizowany i nie robi n^2, tylko 2 full scany, ale jest trochę wolniejszy od dwóch pozostałych sposobów.
+--
+-- SQLITE:
+-- W przypadku Sqlite jednak nie ma co się sugerować planem wykonania, bo jest on bardzo ubogi i nie wskazuje na przykład na to
+-- żeby CROSS JOIN robił n^2. W rzeczywistości CROSS JOIN musi robić n^2 bo w skończonej ilości czasu nie jesteśmy w stanie
+-- go wykonać dla 2310000 wierszy. Poza tym subquery i window function mają porównywalne czas wykonania, ale subquery jest szybsze.
 ```
 
 
