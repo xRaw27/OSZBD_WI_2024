@@ -639,9 +639,36 @@ Zbiór wynikowy powinien zawierać:
 - wartość poprzedniego zamówienia danego klienta.
 
 ```sql
--- wyniki ...
+select c.companyname,
+       o.orderid,
+       o.orderdate,
+       (select round((sum((od1.unitprice * od1.quantity) * (1 - od1.discount)) + o1.freight)::numeric,
+                     2)
+        from orders o1
+                 inner join customers c1 on c1.customerid = o1.customerid
+                 inner join orderdetails od1 on o1.orderid = od1.orderid
+        where o1.orderid = o.orderid
+        group by o1.orderid)                       as order_value,
+       lag(o.orderid) over other_customer_orders   as prev_order_id,
+       lag(o.orderdate) over other_customer_orders as prev_order_date,
+       (select round((sum((od1.unitprice * od1.quantity) * (1 - od1.discount)) + o1.freight)::numeric,
+                     2)
+        from orders o1
+                 inner join customers c1 on c1.customerid = o1.customerid
+                 inner join orderdetails od1 on o1.orderid = od1.orderid
+        where o1.customerid = o.customerid
+          and o1.orderdate < o.orderdate
+        group by o1.orderid, o1.orderdate
+        order by o1.orderdate desc
+        limit 1)                                   as prev_order_value
+from orders o
+         inner join customers c on c.customerid = o.customerid
+         inner join orderdetails od on o.orderid = od.orderid
+group by o.orderid, c.customerid
+window other_customer_orders as (partition by o.customerid order by o.orderdate);
 ```
-
+Zdjęcie tabeli wynikowej, aby udowodnić poprawność zapytania:
+![w:700](./img/ex11.png)
 
 ---
 # Zadanie 12 - obserwacja
