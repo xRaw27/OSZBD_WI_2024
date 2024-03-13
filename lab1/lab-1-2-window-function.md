@@ -686,9 +686,25 @@ order by unitprice desc) last
 from products  
 order by categoryid, unitprice desc;
 ```
+Funkcje okna przyjmują parametr `frame_clause`. Jak możemy przeczytać np. w dokumentacji PostgreSQL:
+>The default framing option is RANGE UNBOUNDED PRECEDING, which is the same as RANGE BETWEEN UNBOUNDED PRECEDING 
+AND CURRENT ROW. With ORDER BY, this sets the frame to be all rows from the partition start up through the current 
+row's last ORDER BY peer.
 
+W podanym przykładzie oznacza to, że ramka dla danego rekordu zawiera wszystkie rekordy z tej samej kategorii
+od pierwszego z najwyższą ceną do ostatniego z ceną równej cenie tego rekordu. Dlatego funkcja `first_value()`
+zwróci najdroższy produkt w danej kategorii a `last_value()` dla każdego rekordu zwróci ostatni w kolejności rekord
+o tej samej cenie. Aby funkcja `last_value()` zwróciła najtańszy rekord z kategorii należy zmodyfikować domyślną ramkę:
 ```sql
--- wyniki ...
+select productid,
+       productname,
+       unitprice,
+       categoryid,
+       first_value(productname) over (partition by categoryid order by unitprice desc) first,
+       last_value(productname)
+       over (partition by categoryid order by unitprice desc rows between unbounded preceding and unbounded following) last
+from products
+order by categoryid, unitprice desc;
 ```
 
 Zadanie
@@ -696,7 +712,29 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select productid,
+       productname,
+       unitprice,
+       categoryid,
+       (select productname
+        from products p1
+        where p.categoryid = p1.categoryid
+        order by p1.unitprice desc
+        limit 1) first,
+       (select productname
+        from products p1
+        where p.categoryid = p1.categoryid
+          and p.unitprice = p1.unitprice
+        order by p1.unitprice
+        limit 1) last
+from products p
+order by categoryid, unitprice desc;
+
+/*
+Wynik porównania jest podobny co w poprzednich przypadkach, wybór SZDB nie ma większego wpływu
+na plan wykonania, zapytanie bez funkcji okna ma złożoność n^2, a z funkcją okna tylko n. Stąd wniosek
+iż użycie funkcji okna do takiego przypdaku jest lepszym rozwiązaniem.
+ */
 ```
 
 ---
