@@ -639,33 +639,26 @@ Zbiór wynikowy powinien zawierać:
 - wartość poprzedniego zamówienia danego klienta.
 
 ```sql
-select c.companyname,
-       o.orderid,
-       o.orderdate,
-       (select round((sum((od1.unitprice * od1.quantity) * (1 - od1.discount)) + o1.freight)::numeric,
-                     2)
-        from orders o1
-                 inner join customers c1 on c1.customerid = o1.customerid
-                 inner join orderdetails od1 on o1.orderid = od1.orderid
-        where o1.orderid = o.orderid
-        group by o1.orderid)                       as order_value,
-       lag(o.orderid) over other_customer_orders   as prev_order_id,
-       lag(o.orderdate) over other_customer_orders as prev_order_date,
-       (select round((sum((od1.unitprice * od1.quantity) * (1 - od1.discount)) + o1.freight)::numeric,
-                     2)
-        from orders o1
-                 inner join customers c1 on c1.customerid = o1.customerid
-                 inner join orderdetails od1 on o1.orderid = od1.orderid
-        where o1.customerid = o.customerid
-          and o1.orderdate < o.orderdate
-        group by o1.orderid, o1.orderdate
-        order by o1.orderdate desc
-        limit 1)                                   as prev_order_value
-from orders o
-         inner join customers c on c.customerid = o.customerid
-         inner join orderdetails od on o.orderid = od.orderid
-group by o.orderid, c.customerid
-window other_customer_orders as (partition by o.customerid order by o.orderdate);
+with order_values as (select c.companyname,
+                             o.customerid,
+                             o.orderid,
+                             o.orderdate,
+                             round((sum((od.unitprice * od.quantity) * (1 - od.discount)) + o.freight)::numeric,
+                                   2) as order_total
+                      from orders o
+                               inner join orderdetails od on o.orderid = od.orderid
+                               inner join customers c on o.customerid = c.customerid
+                      group by o.orderid, c.customerid)
+
+select companyname,
+       orderid,
+       orderdate,
+       order_total,
+       lag(orderid) over other_customer_orders as prev_order_id,
+       lag(orderdate) over other_customer_orders as prev_order_date,
+       lag(order_total) over other_customer_orders as prev_order_value
+from order_values
+window other_customer_orders as (partition by customerid order by orderdate);
 ```
 Zdjęcie tabeli wynikowej, aby udowodnić poprawność zapytania:
 ![w:700](./img/ex11.png)
@@ -759,8 +752,33 @@ Zbiór wynikowy powinien zawierać:
 	- wartość tego zamówienia
 
 ```sql
---- wyniki ...
+with order_values as (select o.customerid,
+                             o.orderid,
+                             o.orderdate,
+                             round((sum((od.unitprice * od.quantity) * (1 - od.discount)) + o.freight)::numeric,
+                                   2) as order_total
+                      from orders o
+                               inner join orderdetails od on o.orderid = od.orderid
+                      group by o.orderid)
+
+select customerid,
+       orderid,
+       orderdate,
+       order_total,
+       first_value(orderid) over asc_monthly_orders      as lowest_total_monthly_id,
+       first_value(orderdate) over asc_monthly_orders    as lowest_total_monthly_date,
+       first_value(order_total) over asc_monthly_orders  as lowest_total_monthly_value,
+       first_value(orderid) over desc_monthly_orders     as highest_total_monthly_id,
+       first_value(orderdate) over desc_monthly_orders   as highest_total_monthly_date,
+       first_value(order_total) over desc_monthly_orders as highest_total_monthly_value
+from order_values
+window asc_monthly_orders as ( partition by customerid, date_part('year', orderdate), date_part('month', orderdate)
+        order by order_total ),
+       desc_monthly_orders as ( partition by customerid, date_part('year', orderdate), date_part('month', orderdate)
+               order by order_total desc );
 ```
+Wynik zapytania
+![w:700](img/ex13.png)
 
 ---
 # Zadanie 14
@@ -777,13 +795,42 @@ Zbiór wynikowy powinien zawierać:
 - wartość sprzedaży produktu narastające od początku miesiąca
 
 ```sql
--- wyniki ...
+select id,
+       productid,
+       date,
+       sum(value) over (partition by productid, date)                                                                           as daily_value,
+       sum(value)
+       over (partition by productid, date_part('year', date), date_part('month', date) order by date RANGE UNBOUNDED PRECEDING) as monthly_value_to_date
+from product_history
+order by productid, date;
 ```
+Wynik zapytania
+![w:700](img/ex14.png)
 
 Spróbuj wykonać zadanie bez użycia funkcji okna. Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select id,
+       productid,
+       date,
+       (select sum(ph1.value)
+        from product_history ph1
+        where ph.productid = ph1.productid
+          and ph.date = ph1.date) as daily_value,
+       (select sum(ph1.value)
+        from product_history ph1
+        where ph.productid = ph1.productid
+          and date_part('year', ph1.date) = date_part('year', ph.date)
+          and date_part('month', ph1.date) = date_part('month', ph.date)
+          and ph1.date <= ph.date) as monthly_value_to_date
+from product_history ph
+order by productid, date;
+
+/*
+W każdym z SZBD wykonanie zapytania skutkuje wykonaniem dwóch zagnieżdżonych Full Scanów tabeli, a całość zajmuje
+od 3 do 5 minut. Jest to dużo gorszy wynik niż w przypadku funkcji okna, tu wykonywany jest jeden Full Scan,
+a całośc trwa zaledwie kilka sekund.
+ */
 ```
 
 ---
