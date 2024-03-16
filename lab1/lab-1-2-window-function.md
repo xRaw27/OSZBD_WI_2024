@@ -4,8 +4,7 @@
 # Lab 1-2
 
 ---
-**Imię i nazwisko:**
-
+**Imię i nazwisko: Dariusz Piwowarski, Wojciech Przybytek**
 --- 
 
 
