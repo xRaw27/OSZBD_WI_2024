@@ -4,8 +4,7 @@
 # Lab 1-2
 
 ---
-**Imię i nazwisko:**
-
+**Imię i nazwisko: Dariusz Piwowarski, Wojciech Przybytek**
 --- 
 
 
@@ -671,9 +670,29 @@ Zbiór wynikowy powinien zawierać:
 - wartość poprzedniego zamówienia danego klienta.
 
 ```sql
--- wyniki ...
-```
+with order_values as (select c.companyname,
+                             o.customerid,
+                             o.orderid,
+                             o.orderdate,
+                             round((sum((od.unitprice * od.quantity) * (1 - od.discount)) + o.freight)::numeric,
+                                   2) as order_total
+                      from orders o
+                               inner join orderdetails od on o.orderid = od.orderid
+                               inner join customers c on o.customerid = c.customerid
+                      group by o.orderid, c.customerid)
 
+select companyname,
+       orderid,
+       orderdate,
+       order_total,
+       lag(orderid) over other_customer_orders as prev_order_id,
+       lag(orderdate) over other_customer_orders as prev_order_date,
+       lag(order_total) over other_customer_orders as prev_order_value
+from order_values
+window other_customer_orders as (partition by customerid order by orderdate);
+```
+Zdjęcie tabeli wynikowej, aby udowodnić poprawność zapytania:
+![w:700](./img/ex11.png)
 
 ---
 # Zadanie 12 - obserwacja
@@ -691,9 +710,25 @@ order by unitprice desc) last
 from products  
 order by categoryid, unitprice desc;
 ```
+Funkcje okna przyjmują parametr `frame_clause`. Jak możemy przeczytać np. w dokumentacji PostgreSQL:
+>The default framing option is RANGE UNBOUNDED PRECEDING, which is the same as RANGE BETWEEN UNBOUNDED PRECEDING 
+AND CURRENT ROW. With ORDER BY, this sets the frame to be all rows from the partition start up through the current 
+row's last ORDER BY peer.
 
+W podanym przykładzie oznacza to, że ramka dla danego rekordu zawiera wszystkie rekordy z tej samej kategorii
+od pierwszego z najwyższą ceną do ostatniego z ceną równej cenie tego rekordu. Dlatego funkcja `first_value()`
+zwróci najdroższy produkt w danej kategorii a `last_value()` dla każdego rekordu zwróci ostatni w kolejności rekord
+o tej samej cenie. Aby funkcja `last_value()` zwróciła najtańszy rekord z kategorii należy zmodyfikować domyślną ramkę:
 ```sql
--- wyniki ...
+select productid,
+       productname,
+       unitprice,
+       categoryid,
+       first_value(productname) over (partition by categoryid order by unitprice desc) first,
+       last_value(productname)
+       over (partition by categoryid order by unitprice desc rows between unbounded preceding and unbounded following) last
+from products
+order by categoryid, unitprice desc;
 ```
 
 Zadanie
@@ -701,7 +736,29 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select productid,
+       productname,
+       unitprice,
+       categoryid,
+       (select productname
+        from products p1
+        where p.categoryid = p1.categoryid
+        order by p1.unitprice desc
+        limit 1) first,
+       (select productname
+        from products p1
+        where p.categoryid = p1.categoryid
+          and p.unitprice = p1.unitprice
+        order by p1.unitprice
+        limit 1) last
+from products p
+order by categoryid, unitprice desc;
+
+/*
+Wynik porównania jest podobny co w poprzednich przypadkach, wybór SZDB nie ma większego wpływu
+na plan wykonania, zapytanie bez funkcji okna ma złożoność n^2, a z funkcją okna tylko n. Stąd wniosek
+iż użycie funkcji okna do takiego przypdaku jest lepszym rozwiązaniem.
+ */
 ```
 
 ---
@@ -726,8 +783,33 @@ Zbiór wynikowy powinien zawierać:
 	- wartość tego zamówienia
 
 ```sql
---- wyniki ...
+with order_values as (select o.customerid,
+                             o.orderid,
+                             o.orderdate,
+                             round((sum((od.unitprice * od.quantity) * (1 - od.discount)) + o.freight)::numeric,
+                                   2) as order_total
+                      from orders o
+                               inner join orderdetails od on o.orderid = od.orderid
+                      group by o.orderid)
+
+select customerid,
+       orderid,
+       orderdate,
+       order_total,
+       first_value(orderid) over asc_monthly_orders      as lowest_total_monthly_id,
+       first_value(orderdate) over asc_monthly_orders    as lowest_total_monthly_date,
+       first_value(order_total) over asc_monthly_orders  as lowest_total_monthly_value,
+       first_value(orderid) over desc_monthly_orders     as highest_total_monthly_id,
+       first_value(orderdate) over desc_monthly_orders   as highest_total_monthly_date,
+       first_value(order_total) over desc_monthly_orders as highest_total_monthly_value
+from order_values
+window asc_monthly_orders as ( partition by customerid, date_part('year', orderdate), date_part('month', orderdate)
+        order by order_total ),
+       desc_monthly_orders as ( partition by customerid, date_part('year', orderdate), date_part('month', orderdate)
+               order by order_total desc );
 ```
+Wynik zapytania
+![w:700](img/ex13.png)
 
 ---
 # Zadanie 14
@@ -744,13 +826,42 @@ Zbiór wynikowy powinien zawierać:
 - wartość sprzedaży produktu narastające od początku miesiąca
 
 ```sql
--- wyniki ...
+select id,
+       productid,
+       date,
+       sum(value) over (partition by productid, date)                                                                           as daily_value,
+       sum(value)
+       over (partition by productid, date_part('year', date), date_part('month', date) order by date RANGE UNBOUNDED PRECEDING) as monthly_value_to_date
+from product_history
+order by productid, date;
 ```
+Wynik zapytania
+![w:700](img/ex14.png)
 
 Spróbuj wykonać zadanie bez użycia funkcji okna. Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select id,
+       productid,
+       date,
+       (select sum(ph1.value)
+        from product_history ph1
+        where ph.productid = ph1.productid
+          and ph.date = ph1.date) as daily_value,
+       (select sum(ph1.value)
+        from product_history ph1
+        where ph.productid = ph1.productid
+          and date_part('year', ph1.date) = date_part('year', ph.date)
+          and date_part('month', ph1.date) = date_part('month', ph.date)
+          and ph1.date <= ph.date) as monthly_value_to_date
+from product_history ph
+order by productid, date;
+
+/*
+W każdym z SZBD wykonanie zapytania skutkuje wykonaniem dwóch zagnieżdżonych Full Scanów tabeli, a całość zajmuje
+od 3 do 5 minut. Jest to dużo gorszy wynik niż w przypadku funkcji okna, tu wykonywany jest jeden Full Scan,
+a całośc trwa zaledwie kilka sekund.
+ */
 ```
 
 ---
