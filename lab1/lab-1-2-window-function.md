@@ -536,7 +536,17 @@ Dla każdego produktu, podaj 4 najwyższe ceny tego produktu w danym roku. Zbió
 Uporządkuj wynik wg roku, nr produktu, pozycji w rankingu
 
 ```sql
---- wyniki ...
+with ranking as (select date_part('year', date) as year,
+                        productid,
+                        productname,
+                        unitprice,
+                        date,
+                        dense_rank() over (partition by productid, date_part('year', date) order by unitprice desc) as rank
+                 from product_history)
+select *
+from ranking
+where rank < 5
+order by year, productid, rank
 ```
 
 
@@ -544,7 +554,29 @@ Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czas
 
 
 ```sql
---- wyniki ...
+with ranking as (select date_part('year', date)            as year,
+                        productid,
+                        productname,
+                        unitprice,
+                        date,
+                        (select count(distinct p2.unitprice) + 1
+                         from product_history p2
+                         where p2.productid = p.productid
+                           and date_part('year', p2.date) = date_part('year', p.date)
+                           and p2.unitprice > p.unitprice) as rank
+                 from product_history p)
+select *
+from ranking
+where rank < 5
+order by year, productid, rank;
+
+-- Jeśli chodzi o PostgresSQL to zapytanie z funkcją okna ma sensowny czas wykonania (około 10 sekund), natomiast zapytanie
+-- z podzapytaniem nie udało mi się w skończonym czasie wykonać nawet dla pojedynczego productid (zapytanie trwało już ponad 10 minut)
+-- Po analizie planu wykonania zapytania z podzapytaniem, okazało się że jest ono bardzo kosztowne (jego kosz to około 9E11 gdzie z 
+-- window function koszt to jedynie 1185340). Z grafu zapytania oraz wartości kosztu wynika że PostgresSQL nie zoptymalizował go
+-- i wykonuje ~n^2 operacji.
+-- W MSSQL jest podobnie, zapytanie z funkcją okna wykonuje się w około 10 sekund, natomiast zapytanie z podzapytaniem nie udało się wykonać
+-- Analiza planu wykonania ponownie wskazuje na nested loop join, który jest bardzo kosztowny.
 ```
 
 ---
