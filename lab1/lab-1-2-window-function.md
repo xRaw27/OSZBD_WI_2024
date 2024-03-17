@@ -572,10 +572,13 @@ order by year, productid, rank;
 -- Jeśli chodzi o PostgresSQL to zapytanie z funkcją okna ma sensowny czas wykonania (około 10 sekund), natomiast zapytanie
 -- z podzapytaniem nie udało mi się w skończonym czasie wykonać nawet dla pojedynczego productid (zapytanie trwało już ponad 10 minut)
 -- Po analizie planu wykonania zapytania z podzapytaniem, okazało się że jest ono bardzo kosztowne (jego kosz to około 9E11 gdzie z 
--- window function koszt to jedynie 1185340). Z grafu zapytania oraz wartości kosztu wynika że PostgresSQL nie zoptymalizował go
--- i wykonuje ~n^2 operacji.
--- W MSSQL jest podobnie, zapytanie z funkcją okna wykonuje się w około 10 sekund, natomiast zapytanie z podzapytaniem nie udało się wykonać
--- Analiza planu wykonania ponownie wskazuje na nested loop join, który jest bardzo kosztowny.
+-- window function koszt to jedynie 1185340). Z grafu planu zapytania oraz wartości kosztu wnioskujemy że PostgresSQL nie 
+-- zoptymalizował go i wykonuje ~n^2 operacji.
+-- W MSSQL jest podobnie, ale zapytanie z funkcją okna wykonuje się w około 3 sekund, natomiast zapytanie z podzapytaniem 
+-- znowu nie udało się wykonać. Analiza planu wykonania ponownie wskazuje na nested loop join, który jest bardzo kosztowny.
+-- W przypadku Sqlite zapytanie z funkcją okna podobnie jak w MSSQL wykonuje się w około 3 sekundy a zapytanie z podzapytaniem
+-- się nie wykonało w sensownym czasie. Niestety tutaj plan wykonania jest dość ubogi więc ciężko określić czemu to zapytanie
+-- jest tak kosztowne, ale prawdopodobnie z tych samych przyczyn co w przypadku PostgresSQL i MSSQL.
 ```
 
 ---
@@ -870,7 +873,80 @@ a całośc trwa zaledwie kilka sekund.
 Wykonaj kilka "własnych" przykładowych analiz. Czy są jeszcze jakieś ciekawe/przydatne funkcje okna (z których nie korzystałeś w ćwiczeniu)? Spróbuj ich użyć w zaprezentowanych przykładach.
 
 ```sql
--- wyniki ...
+-- Łącząc ze sobą funkcje lag i max można wykonać zapytanie które dla każdego produktu zwróci okresy (daty od i do) 
+-- w których cena produktu była najwyższa (wraz z tą ceną). Dla danych w product_history wygenerowanych według skryptu 
+-- te okresy wynoszą zawsze 1 dzień ale dla rzeczywistych zbiorów danych takie zapytanie mogło by być bardzo przydatne)
+
+with p as (select productid,
+                  productname,
+                  lag(date) over (partition by productid order by date) + 1 as date_from,
+                  date                                                        as date_to,
+                  unitprice,
+                  max(unitprice) over (partition by productid)                as maxprice
+           from product_history
+           order by productid)
+select productid, productname, date_from, date_to, unitprice from p
+where p.unitprice = p.maxprice;
+
+
+
+-- Funkcja która nie była jeszcze użyta w ćwiczeniu to nth_value. Funkcja ta przyjmuje dwa argumenty, pierwszy to kolumna
+-- z której chcemy pobrać wartość, a drugi to numer wiersza w ramce okna. Korzystając z tej funkcji możemy przerobić
+-- zapytanie z zadania 13 tak by zwracała:
+-- - Id klienta,
+-- - nr zamówienia,
+-- - datę zamówienia,
+-- - wartość zamówienia (wraz z opłatą za przesyłkę),
+-- - dane zamówienia klienta o najwyższej wartości w danym miesiącu
+-- 	- nr tego zamówienia
+-- 	- datę tego zamówienia
+-- 	- wartość tego zamówienia
+-- - dane zamówienia klienta o drugiej najwyższej wartości w danym miesiącu
+-- 	- nr tego zamówienia
+-- 	- datę tego zamówienia
+-- 	- wartość tego zamówienia
+
+select customerid,
+       orderid,
+       orderdate,
+       order_total,
+       first_value(orderid) over desc_monthly_orders      as highest_total_monthly_id,
+       first_value(orderdate) over desc_monthly_orders    as highest_total_monthly_date,
+       first_value(order_total) over desc_monthly_orders  as highest_total_monthly_value,
+       nth_value(orderid, 2) over desc_monthly_orders     as second_highest_total_monthly_id,
+       nth_value(orderdate, 2) over desc_monthly_orders   as second_highest_total_monthly_date,
+       nth_value(order_total, 2) over desc_monthly_orders as second_highest_total_monthly_value
+from order_values
+window desc_monthly_orders as ( partition by customerid, date_part('year', orderdate), date_part('month', orderdate)
+        order by order_total desc );
+
+
+
+-- Kolejne dwie funkcje które nie były użyte w ćwiczeniu to percent_rank i cume_dist. Funkcja percent_rank
+-- zwraca percentyl dla danego wiersza. Funkcja cume_dist zwraca natomiasto wartość kumulatywnej dystrybuanty
+-- danego wiersza. Funkcje zwracająca percentyl można wykorzystać na przykład do określenia wyniku z matury
+-- gdzie oprócz wyniku mamy też właśnie podany percentyl. Funkcję możemy porównać z funkcjami rank, dense_rank i
+-- row_number z ćwiczenia 8.
+
+select productid, productname, unitprice, categoryid,
+    row_number() over(desc_price_by_category) as rowno,
+    rank() over(desc_price_by_category) as rankprice,
+    dense_rank() over(desc_price_by_category) as denserankprice,
+    percent_rank() over(desc_price_by_category) as percentrankprice,
+    cume_dist() over(desc_price_by_category) as cumedistprice
+from products
+window desc_price_by_category as (partition by categoryid order by unitprice desc);
+
+
+
+-- Ostatnia funkcja której jeszcze nie użyliśmy to ntile. Funkcja ta przyjmuje jeden argument n i
+-- dzieli wiersze wewnątrz okna na n możliwie równych grup i zwraca numer grupy do której należy dany wiersz.
+-- Naturalnym zastosowaniem takiej funkcji jest podzielenie studentów z danego roku na grupy. Ale jako że
+-- mamy do dyspozycji bazę Northwind to możemy podzielić klientów z danego kraju na 2 grupy.
+
+select companyname, country, ntile(2) over (partition by country)
+from customers;
+ 
 ```
 
 
