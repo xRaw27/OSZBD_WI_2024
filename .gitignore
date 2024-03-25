@@ -5,3 +5,5 @@
 /mssql_data
 /postgres_data
 /sqlite_data
+
+.idea
