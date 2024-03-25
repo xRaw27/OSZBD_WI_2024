@@ -149,7 +149,14 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
 > Wyniki: 
 
 ```sql
---  ...
+/*
+ 1. Dla podanej daty nie istnieją żadne rekordy i MSSQL jest w stanie zopytmalizować to zapytanie, nie wykonując joina.
+ Jeżeli jednak wybierzemy datę, dla której istnieją rekordy, to MSSQL wykona full scan na tabeli salesorderdetail. Można 
+ to zoptymalizować dodając index do tabeli na kolumnie salesorderid
+ 
+ 2. Najpierw równolegle wykonywane są Table Scan na tabelach, następnie tworzy hash mapę z salesorderid i dopasowuje rekordy do siebie.
+ Kolejno wykonywany jest group by za pomocą hash mapy, a później Filter.
+ */
 ```
 
 ---
@@ -257,7 +264,9 @@ Jakie są według Ciebie najważniejsze pola?
 > Wyniki: 
 
 ```sql
---  ...
+/*
+ - pola pozwalające na identyfikację rekordu (database_id, object_id, index_id, 
+ */
 ```
 
 ---
