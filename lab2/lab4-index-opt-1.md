@@ -16,7 +16,7 @@
 
 ---
 
-**Imię i nazwisko:**
+**Imię i nazwisko:** Dariusz Piwowarski, Wojciech Przybytek
 
 --- 
 
@@ -263,10 +263,14 @@ Jakie są według Ciebie najważniejsze pola?
 ---
 > Wyniki: 
 
-```sql
-/*
- - pola pozwalające na identyfikację rekordu (database_id, object_id, index_id, 
- */
+```
+ - database_id, object_id, index_id (pola pozwalające na identyfikację rekordu)
+ - index_type_desc (typ indeksu)
+ - avg_fragmentation_in_percent (średni procent fragmentacji, może sugerować kiedy należy przebudować indeks)
+ - avg_page_space_used_in_percent (ile procent każdej strony indeksu jest zajęte, dla odczytu lepszy duży procent, 
+   dla zapisywania lepszy mały procent)
+ - record_count (ilość rekordów w indeksie, określa jak duży jest indeks)
+ - ghost_record_count (ilość zbędnych rekordów, które zostaną usunięte przez system)
 ```
 
 ---
@@ -299,8 +303,12 @@ and index_id not in (0) --only clustered and nonclustered indexes
 > Wyniki: 
 > zrzut ekranu/komentarz:
 
-```sql
---  ...
+```
+- PK_JobCandidate_JobCandidateID
+- PK_ProductModel_ProductModelID
+- PK_BillOfMaterials_BillOfMaterialsID
+- IX_WorkOrder_ProductID
+- IX_WorkOrderRouting_ProductID
 ```
 
 ---
@@ -329,8 +337,10 @@ and index_id not in (0) --only clustered and nonclustered indexes
 > Wyniki: 
 > zrzut ekranu/komentarz:
 
-```sql
---  ...
+```
+- XMLPATH_Person_Demographics
+- XMLPROPERTY_Person_Demographics
+- XMLVALUE_Person_Demographics
 ```
 
 ---
@@ -342,8 +352,12 @@ Czym się różni przebudowa indeksu od reorganizacji?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Reorganizacja defragmentuje poszczególne strony indeksu, nie usuwa jednak fragmentacji pomiędzy stronami i nie zmienia 
+ich struktury. Jest to proces nie zajmujący dużo dodatkowej pamięci.
+Przebudowa tworzy nowy indeks, a następnie usuwa stary. W jej trakcie eliminowana jest cała fragmentacja nie tylko ze 
+stron, ale również między stronami. Jest to jednak proces bardziej kosztowny i wymagający więcej dodatkowej pamięci niż
+reorganizacja.
 ```
 
 ---
@@ -353,8 +367,9 @@ Sprawdź co przechowuje tabela sys.dm_db_index_usage_stats:
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Przechowuje informacje na temat liczy użyć i daty ostatniego użycia operacji seek, scan, lookup i update
+na poszczególnych indeksach przez użytkownika i system.
 ```
 
 ---
@@ -400,7 +415,14 @@ Napisz przygotowane komendy SQL do naprawy indeksów:
 > Wyniki: 
 
 ```sql
---  ...
+alter index XMLPATH_Person_Demographics on Person.Person rebuild
+alter index XMLPROPERTY_Person_Demographics on Person.Person rebuild
+alter index XMLVALUE_Person_Demographics on Person.Person rebuild
+alter index PK_JobCandidate_JobCandidateID on HumanResources.JobCandidate reorganize
+alter index PK_ProductModel_ProductModelID on Production.ProductModel reorganize
+alter index PK_BillOfMaterials_BillOfMaterialsID on Production.BillOfMaterials reorganize
+alter index IX_WorkOrder_ProductID on Production.WorkOrder reorganize
+alter index IX_WorkOrderRouting_ProductID on Production.WorkOrderRouting reorganize
 ```
 
 ---
@@ -428,8 +450,11 @@ Zapisz sobie kilka różnych typów stron, dla różnych indeksów:
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+- 11712 person.address, 1, PageType 1
+- 17856 production.workorder, 3, PageType 2
+- 1168 person.person, 1, PageType 3
+- 1135 person.emailaddress, 1, PageType 10
 ```
 
 ---
@@ -452,8 +477,12 @@ Zapisz obserwacje ze stron. Co ciekawego udało się zaobserwować?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Strona zawiera następujące sekcje: numer strony, buffer, header, allocation status i dane.
+Dane podzielone są na sloty i kolumny, przy czym każda kolumna ma podaną długość. Istnieją również puste sloty, które
+nie mają kolumn.
+Nieco inna jest ostatnia ze sprawdzanych stron o typie 10, czyli IAM (Index Allocation Map). Opisuje ona jakie strony
+są zaalokowane w jednostce alokacji przypisanej do danej strony IAM.
 ```
 
 ---
