@@ -148,15 +148,35 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
 ---
 > Wyniki: 
 
-```sql
-/*
+```
  1. Dla podanej daty nie istnieją żadne rekordy i MSSQL jest w stanie zopytmalizować to zapytanie, nie wykonując joina.
- Jeżeli jednak wybierzemy datę, dla której istnieją rekordy, to MSSQL wykona full scan na tabeli salesorderdetail. Można 
- to zoptymalizować dodając index do tabeli na kolumnie salesorderid
+ Jeżeli jednak wybierzemy datę, dla której istnieją rekordy, to MSSQL wykona 2 full scany na obu tabelach. Można 
+ to zoptymalizować dodając index do tabeli na kolumnie orderdate żeby szybciej wybrać tylko wiersze z datą która nas
+ interesuje oraz indeks na salesorderid w tabeli salesorderdetail żeby przyspieszyć joina.
  
- 2. Najpierw równolegle wykonywane są Table Scan na tabelach, następnie tworzy hash mapę z salesorderid i dopasowuje rekordy do siebie.
- Kolejno wykonywany jest group by za pomocą hash mapy, a później Filter.
- */
+ 2. Najpierw równolegle wykonywane są Table Scan na tabelach, następnie robiony jest hash match tworzy hash mapę z 
+ salesorderid i dopasowuje rekordy z tabel do siebie czyli robi joina. Potem znowy przy pomocy hash match-a tworzona
+ jest hash mapa gdzie kluczami są kolumny po których robimy groupby czyli orderdate, productid i potem dopasowywane
+ są rokordy z zjoinowanej tabeli po kluczu i sumowane są tam wartości orderqty, unitpricediscount, i linetotal. 
+ Sensowne jest dodanie indeksu na salesorderid żeby przyspieszyć joina, natomiast wydaje nam się że z kolei groupby nie
+ będzie działał szybciej nawet jeśli dodamy indeksy na orderdate, productid, bo i tak musimy przejść przez całą
+ zjoinowaną tabelę żeby te dane zgrupować.
+ 
+ 3. Tak samo jak w przypadku 1 (po zmianie daty na istniejące w tabeli) wykonywane są 2 full scany na tabelach
+ salesorderheader i salesorderdetail a następnie robiony jest hash match, który tworzy hash mapę pomiędzy
+ gdzie kluczami są salesorderid z tabeli salesorderheader które spełniają where-a, a następnie jest robione
+ przejście po tabeli salesorderdetail i sprawdzane jest czy jego salesorderid jest w hash mapie i jeśli tak
+ to robiony jest join. Indeksy można dodać tak samo jak 1.
+ 
+ 4. Podobnie jak w 1 i 3 mamy 2 full scany gdzie jeden wyciąga wszystkie wiersze z salesorderheader, a drugi tylko
+ te z salesorderdetail które spełniają where-a. Potem tabele są joinowane hash matchem tylko tym razem dopasowywane będą
+ wiersze z salesorderheader, bo jest ich więcej (z salesorderdetail wyciągamy tylko 68 wiersze które spełniają where-a)
+ Na końcu robione jest sortowanie po salesorderid. 
+ Jeśli chodzi o optymalizację tego zapytania to w pierwszej kolejności sensowne jest dodanie indeksu na 
+ carriertrackingnumber, który przyspieszy where-a, potem aby przyspierszyć joina potrzebny jest indeks na salesorderid
+ w tabeli salesorderheader (mógłby być to nawet klastrowany indeks bo salesorderid wygląda jak dobry kandydat na klucz
+ główny w tej tabeli). Sortowanie można zrobić na końcu na tych kilkudziesięciu wierszach zjoinowanej tabeli i wtedy
+ akurat indeks raczej nic nie przyspieszy.
 ```
 
 ---
@@ -181,8 +201,13 @@ Sprawdź zakładkę **Tuning Options**, co tam można skonfigurować?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Można w pierwszej kolejności wybrać PDS (Physical Design Structures) które mogą zostać użyte do tuningu. 
+Do wyboru są między innymi indexes, indexed views, indexes and indexed views, nonclustered indexes itd.
+czyli w skrócie wybieramy tutaj formę w jakiej fizycznie będą zapisane nasze usprawnienia.
+Możemy też wybrać czy chcemy wykonać partycjonowanie.
+Na koniec możemy wybrać co się ma stać z istniejącymi PDS, czyli na przykład Keep all existing PDS lub 
+Keep indexes only itd.
 ```
 
 ---
@@ -214,8 +239,26 @@ Opisz, dlaczego dane indeksy zostały zaproponowane do zapytań:
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Wybraliśmy opcję indexes, bo domyślna opcja indexes and indexed views tworzy widoki, które na przykład w przypadku
+2 zapytania z groupby dosłownie stworzyło widok już z joinem i groupby, więc wtedy wystarczyłoby tylko wybrać
+z niego wherem po warunku dane wiersze, ciekawsze wydają się same indeksy które mogą być bardziej uniwersalne do
+różnych zapytań. 
+
+Zostało zaproponowane 6 indeksów nonclustered:
+Dla tabel salesorderheader:
+ 1. kolumny kluczowe: [OrderDate], [SalesOrderID] ; kolumny dołączone: pozostałe kolumny tabeli
+ 2. kolumny kluczowe: [SalesOrderID] ; kolumny dołączone: [DueDate], [ShipDate], [SalesOrderNumber], [PurchaseOrderNumber]
+ 3. kolumny kluczowe: [OrderDate] ; kolumny dołączone: [SalesOrderID]
+Dla tabeli salesorderdetails:
+ 4. kolumny kluczowe: [SalesOrderID] ; kolumny dołączone: pozostałe kolumny tabeli
+ 5. kolumny kluczowe: [SalesOrderID], [ProductID] ; kolumny dołączone: [OrderQty], [UnitPriceDiscount], [LineTotal]
+ 6. kolumny kluczowe: [CarrierTrackingNumber]; kolumny dołączone: [SalesOrderID]
+
+Indeksy 1, 4 optymalizują zapytania 1 i 3.
+Indeksy 3, 5 optymalizują zapytanie 2.
+Indeksy 2, 6 optymalizują zapytanie 4.
+Dokładna analiza tego w jaki sposób je optymalizują znajduje się przy porównaniu Execution Planów poniżej.
 ```
 
 ---
@@ -226,8 +269,24 @@ Sprawdź jak zmieniły się Execution Plany. Opisz zmiany:
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Indeksy numerujemy jak w powyższej liście indeksów
+
+ 1. Pierwsze zapytanie teraz zamiast robić 2 full scany wykorzystuje do tego na salesorderheader indeks numer 1, a do 
+ tego na salesorderdetails indeksu numer 4. Dzięki temu wyciąga szybciej dane z tabeli bo nie musi przeglądać
+ całej tabeli. Join też jest sdzybszy bo matchuje wiersze używając indeksów.
+ 
+ 2. Zamiast full scan robiony jest index scan dla teabli salesorderheader wykorzysuje indeks numer 3 a dla 
+ salesorderdetails indeks numer 5. Indeks numer 3 pozwala wyciągnąć po rosnącej dacie SalesOrderID.
+ Indeks numer 5 wyciąga sortując po SalesOrderID i ProductID dane potrzebne do sum. Powoduje to, że
+ po joinie dane są już przygotowane do zrobienia groupby dzięki czemu jest szybszy. 
+ 
+ 3. To samo co w 1
+ 
+ 4. Robiony jest index seek który robiy where-a wyciągając z tabeli salesorderdetails dane o odpowienim 
+ carriertrackingnumber przy pomocy indeksu numer 6, dane są od razu sortowane po SalesOrderID jeszcze przed joinem.
+ Dla wyciągniętych SalesOrderID robiony jest drugi index seek na tabeli salesorderheader używający indeksu numer 2,
+ który wyciąga pozostałe potrzebne dane. Na koniec robiony jest join i dane po joinie są już posortowane.
 ```
 
 ---
