@@ -337,7 +337,7 @@ Czy jest widoczna różnica w zapytaniach? Jeśli tak to jaka? Aby wymusić uży
 > Wyniki: 
 
 ```
-
+Oba zapytania mają ten sam plan, koszt i czas wykonania, zamiast Table Scan wykonywany jest Index Seek.
 ```
 
 
@@ -358,8 +358,13 @@ Który jest większy? Jak można skomentować te dwa podejścia do indeksowania?
 
 > Wyniki: 
 
-```sql
---  ...
+```
+Indeks address_postalcode_2 jest większy. W tym indeksie wszystkie kolumny użyte do jego stworzenia są częścią b-drzewa,
+co nie dzieje się w przypadku indeksu pierwszego, w którym do budowy b-drzewa wykorzystywana jest tylko kolumna
+postalcode. Indeks pierwszy będzie lepszy w przypadku kiedy tylko kolumna postalcode będzie wykorzystywana do warunku
+WHERE, a reszta kolumn jest tylko pobierana, ponieważ zajmuje mniej miejsca. Drugi indeks będzie lepszy kiedy do
+warunków WHERE wykorzystamy wiele kolumn, ponieważ przyspieszy to czas wykonania zapytania co rekompensuje różnicę w
+zajmowanej pamięci.
 ```
 
 
