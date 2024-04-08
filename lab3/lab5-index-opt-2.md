@@ -98,8 +98,12 @@ Zanotuj czas zapytania oraz jego koszt koszt:
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Czas zapytania - 1.0
+Koszt zapytania - 0.139158
+
+Czas zapytania - 2.0
+Koszt zapytania - 0.139158
 ```
 
 
@@ -115,8 +119,16 @@ Jak zmienił się plan i czas? Czy jest możliwość optymalizacji?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Czas zapytania - 0.0
+Koszt zapytania - 0.00657038
+
+Czas zapytania - 0.0
+Koszt zapytania - 0.0507122
+
+Czas i koszt poprawił się względem zapytania bez indeksu. Wykonywana jest jedna dodatkowa operacja dostępu do wiersza,
+ponieważ rekordy nie są fizycznie posortowane względem storeid, a jedynie wskaźniki do nich. Gdyby rekordy były już
+posortowane to przyspieszyłoby to wykonanie zapytania.
 ```
 
 
@@ -132,8 +144,18 @@ Czy zmienił się plan i czas? Skomentuj dwa podejścia w wyszukiwaniu krotek.
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+1.
+Czas zapytania - 0.0
+Koszt zapytania - 0.0032831
+
+2.
+Czas zapytania - 0.0
+Koszt zapytania - 0.0032996
+
+Czas nie zmienił się, a w planie zamiast Index Seek widoczny jest Clustered Index Seek. Dodatkowo nie są
+wykonywane operacje dostępu do wiersza, ponieważ te są fizycznie uporządkowane według kolumny store_id. Wynika stąd,
+że użycie indeksu klastrowego jest szybsze niż nieklastrowego, ponieważ nie jest potrzebna operacja dostępu do wiersza.
 ```
 
 
