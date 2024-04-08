@@ -255,8 +255,16 @@ Która część zapytania ma największy koszt?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Sort:
+Czas zapytania - 23.0
+Koszt zapytania - 0.527433
+
+Full scan:
+Czas zapytania - 4.0
+Koszt zapytania - 0.0700485
+
+Największy koszt ma operacja Sort
 ```
 
 Jaki indeks można zastosować aby zoptymalizować koszt zapytania? Przygotuj polecenie tworzące index.
@@ -266,17 +274,24 @@ Jaki indeks można zastosować aby zoptymalizować koszt zapytania? Przygotuj po
 > Wyniki: 
 
 ```sql
---  ...
+create index purchaseorderdetail_rejectedqty_desc_productid_asc_idx
+on purchaseorderdetail (rejectedqty desc, productid asc)
+include (orderqty, duedate);
 ```
 
  Ponownie wykonaj analizę zapytania:
 
-
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Operacje Sort i Full Scan zostały zastąpione przez jedną operację Full index scan.
+Jej koszt i czas to:
+Czas zapytania - 3.0
+Koszt zapytania - 0.0396782
+
+Udało nam się zredukować koszt operacji Sort, dodając indeks, przez co nie jest ona już konieczna, a wykonywany jest
+jedynie full index scan.
 ```
 
 # Zadanie 4
