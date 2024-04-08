@@ -406,16 +406,17 @@ Czy indeks został użyty? Dlaczego?
 
 > Wyniki: 
 
-```sql
---  ...
+```
+Dalej jest wykonywany Full scan a nie Full index scan oraz nie zmienił się koszt, co sugeruje że indeks nie jest używany
 ```
 
 Spróbuj wymusić indeks. Co się stało, dlaczego takie zachowanie?
 
 > Wyniki: 
 
-```sql
---  ...
+```
+Przez to że w indeksie brakuje include(productassemblyid), to pomimo użycia indeksu konieczne jest wykonanie
+operacji Row Id Access która jest na tyle kosztowna, że nie opłaca się używać tego indeksu
 ```
 
 
