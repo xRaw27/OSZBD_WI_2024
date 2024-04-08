@@ -199,8 +199,9 @@ Co można o nich powiedzieć?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Dla każdego zapytania wykonywany jest Table Scan, co oznacza, że podczas zapytania naiwnie przeszukiwane są wszystkie
+rekordy w tabeli, które spełniają warunek. Każde z zapytań możnaby zoptymalizować indeksem.
 ```
 
 Przygotuj indeks obejmujący te zapytania:
@@ -216,8 +217,11 @@ Sprawdź plan zapytania. Co się zmieniło?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Dla 2 pierwszych zapytań czas i koszt zmalał, a Table Scan został zastąpiony przez Index Seek i Row Id Lookup. 
+Inaczej sytuacja ma się w 3 zapytaniu, gdzie czas i koszt nie zmienił się znacząco, a zamiast Index Seek wykonywana jest
+operacja Index Scan. Pierwszym polem w indeksie jest kolumna lastname, a więc indeks ten nie pomaga w wykonaniu 
+zapytania.
 ```
 
 
@@ -229,8 +233,12 @@ Czym różni się ten plan od zapytania o `'Osarumwense Agbonile'` . Dlaczego ta
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Tym razem tylko dla 2 zapytania wykorzystywany jest indeks, 1 i 3 zapytanie wykonują Table Scan, tak jak w przypadku,
+gdy indeksu nie było. Wynika to z faktu, że jest bardzo mało rekordów dla pierwszych danych, a dla drugich znacznie
+więcej. Z tego powodu planer silnika baz danych estymuje, że dla takiej ilości wierszy i tak będzie musiał przejśc przez
+sporą część indeksu i dla każdego wykonać Row Id Lookup, a więc bardziej opłacalne będzie przejście przez wszystkie 
+wiersze tak jak fizycznie są posortowane w tabeli.
 ```
 
 
@@ -328,8 +336,8 @@ Czy jest widoczna różnica w zapytaniach? Jeśli tak to jaka? Aby wymusić uży
 
 > Wyniki: 
 
-```sql
---  ...
+```
+
 ```
 
 
