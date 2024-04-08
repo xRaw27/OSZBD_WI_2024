@@ -99,10 +99,10 @@ Zanotuj czas zapytania oraz jego koszt koszt:
 > Wyniki: 
 
 ```
-Czas zapytania - 1.0
+Czas zapytania - 1.0ms
 Koszt zapytania - 0.139158
 
-Czas zapytania - 2.0
+Czas zapytania - 2.0ms
 Koszt zapytania - 0.139158
 ```
 
@@ -120,10 +120,10 @@ Jak zmienił się plan i czas? Czy jest możliwość optymalizacji?
 > Wyniki: 
 
 ```
-Czas zapytania - 0.0
+Czas zapytania - 0.0ms
 Koszt zapytania - 0.00657038
 
-Czas zapytania - 0.0
+Czas zapytania - 0.0ms
 Koszt zapytania - 0.0507122
 
 Czas i koszt poprawił się względem zapytania bez indeksu. Wykonywana jest jedna dodatkowa operacja dostępu do wiersza,
@@ -146,15 +146,15 @@ Czy zmienił się plan i czas? Skomentuj dwa podejścia w wyszukiwaniu krotek.
 
 ```
 1.
-Czas zapytania - 0.0
+Czas zapytania - 0.0ms
 Koszt zapytania - 0.0032831
 
 2.
-Czas zapytania - 0.0
+Czas zapytania - 0.0ms
 Koszt zapytania - 0.0032996
 
 Czas nie zmienił się, a w planie zamiast Index Seek widoczny jest Clustered Index Seek. Dodatkowo nie są
-wykonywane operacje dostępu do wiersza, ponieważ te są fizycznie uporządkowane według kolumny store_id. Wynika stąd,
+wykonywane operacje dostępu do wiersza, ponieważ te są fizycznie uporządkowane według kolumny storeid. Wynika stąd,
 że użycie indeksu klastrowego jest szybsze niż nieklastrowego, ponieważ nie jest potrzebna operacja dostępu do wiersza.
 ```
 
@@ -265,11 +265,11 @@ Która część zapytania ma największy koszt?
 
 ```
 Sort:
-Czas zapytania - 23.0
+Czas zapytania - 23.0ms
 Koszt zapytania - 0.527433
 
 Full scan:
-Czas zapytania - 4.0
+Czas zapytania - 4.0ms
 Koszt zapytania - 0.0700485
 
 Największy koszt ma operacja Sort
@@ -295,7 +295,7 @@ include (orderqty, duedate);
 ```
 Operacje Sort i Full Scan zostały zastąpione przez jedną operację Full index scan.
 Jej koszt i czas to:
-Czas zapytania - 3.0
+Czas zapytania - 3.0ms
 Koszt zapytania - 0.0396782
 
 Udało nam się zredukować koszt operacji Sort, dodając indeks, przez co nie jest ona już konieczna, a wykonywany jest
