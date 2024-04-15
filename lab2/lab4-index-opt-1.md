@@ -153,7 +153,13 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
  Jeżeli jednak wybierzemy datę, dla której istnieją rekordy, to MSSQL wykona 2 full scany na obu tabelach. Można 
  to zoptymalizować dodając index do tabeli na kolumnie orderdate żeby szybciej wybrać tylko wiersze z datą która nas
  interesuje oraz indeks na salesorderid w tabeli salesorderdetail żeby przyspieszyć joina.
- 
+```
+![](img/image1.png)
+
+Analiza zapytania z datą, dla której istnieją rekordy:
+![](img/image2.png)
+
+```
  2. Najpierw równolegle wykonywane są Table Scan na tabelach, następnie robiony jest hash match tworzy hash mapę z 
  salesorderid i dopasowuje rekordy z tabel do siebie czyli robi joina. Potem znowy przy pomocy hash match-a tworzona
  jest hash mapa gdzie kluczami są kolumny po których robimy groupby czyli orderdate, productid i potem dopasowywane
@@ -161,13 +167,21 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
  Sensowne jest dodanie indeksu na salesorderid żeby przyspieszyć joina, natomiast wydaje nam się że z kolei groupby nie
  będzie działał szybciej nawet jeśli dodamy indeksy na orderdate, productid, bo i tak musimy przejść przez całą
  zjoinowaną tabelę żeby te dane zgrupować.
- 
+```
+
+![](img/image3.png)
+
+```
  3. Tak samo jak w przypadku 1 (po zmianie daty na istniejące w tabeli) wykonywane są 2 full scany na tabelach
  salesorderheader i salesorderdetail a następnie robiony jest hash match, który tworzy hash mapę pomiędzy
  gdzie kluczami są salesorderid z tabeli salesorderheader które spełniają where-a, a następnie jest robione
  przejście po tabeli salesorderdetail i sprawdzane jest czy jego salesorderid jest w hash mapie i jeśli tak
  to robiony jest join. Indeksy można dodać tak samo jak 1.
- 
+```
+
+![](img/image4.png)
+
+```
  4. Podobnie jak w 1 i 3 mamy 2 full scany gdzie jeden wyciąga wszystkie wiersze z salesorderheader, a drugi tylko
  te z salesorderdetail które spełniają where-a. Potem tabele są joinowane hash matchem tylko tym razem dopasowywane będą
  wiersze z salesorderheader, bo jest ich więcej (z salesorderdetail wyciągamy tylko 68 wiersze które spełniają where-a)
@@ -178,6 +192,8 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
  główny w tej tabeli). Sortowanie można zrobić na końcu na tych kilkudziesięciu wierszach zjoinowanej tabeli i wtedy
  akurat indeks raczej nic nie przyspieszy.
 ```
+
+![](img/image5.png)
 
 ---
 
@@ -210,6 +226,8 @@ Na koniec możemy wybrać co się ma stać z istniejącymi PDS, czyli na przykł
 Keep indexes only itd.
 ```
 
+![](img/image6.png)
+
 ---
 
 
@@ -236,6 +254,10 @@ Uruchom zapisany skrypt w Management Studio.
 
 Opisz, dlaczego dane indeksy zostały zaproponowane do zapytań:
 
+![](img/image7.png)
+
+![](img/image10.png)
+
 ---
 > Wyniki: 
 
@@ -247,19 +269,23 @@ różnych zapytań.
 
 Zostało zaproponowane 6 indeksów nonclustered:
 Dla tabel salesorderheader:
- 1. kolumny kluczowe: [OrderDate], [SalesOrderID] ; kolumny dołączone: pozostałe kolumny tabeli
- 2. kolumny kluczowe: [SalesOrderID] ; kolumny dołączone: [DueDate], [ShipDate], [SalesOrderNumber], [PurchaseOrderNumber]
- 3. kolumny kluczowe: [OrderDate] ; kolumny dołączone: [SalesOrderID]
+ 1. kolumny kluczowe: [OrderDate] ASC, [SalesOrderID] ASC ; kolumny dołączone: pozostałe kolumny tabeli
+ 2. kolumny kluczowe: [SalesOrderID] ASC ; kolumny dołączone: [DueDate], [ShipDate], [SalesOrderNumber], [PurchaseOrderNumber]
+ 3. kolumny kluczowe: [OrderDate] ASC ; kolumny dołączone: [SalesOrderID]
 Dla tabeli salesorderdetails:
- 4. kolumny kluczowe: [SalesOrderID] ; kolumny dołączone: pozostałe kolumny tabeli
- 5. kolumny kluczowe: [SalesOrderID], [ProductID] ; kolumny dołączone: [OrderQty], [UnitPriceDiscount], [LineTotal]
- 6. kolumny kluczowe: [CarrierTrackingNumber]; kolumny dołączone: [SalesOrderID]
+ 4. kolumny kluczowe: [SalesOrderID] ASC ; kolumny dołączone: pozostałe kolumny tabeli
+ 5. kolumny kluczowe: [SalesOrderID] ASC, [ProductID] ASC ; kolumny dołączone: [OrderQty], [UnitPriceDiscount], [LineTotal]
+ 6. kolumny kluczowe: [CarrierTrackingNumber] ASC, [SalesOrderID] ASC
 
 Indeksy 1, 4 optymalizują zapytania 1 i 3.
 Indeksy 3, 5 optymalizują zapytanie 2.
 Indeksy 2, 6 optymalizują zapytanie 4.
 Dokładna analiza tego w jaki sposób je optymalizują znajduje się przy porównaniu Execution Planów poniżej.
 ```
+
+![](img/image9.png)
+
+![](img/image8.png)
 
 ---
 
@@ -271,23 +297,36 @@ Sprawdź jak zmieniły się Execution Plany. Opisz zmiany:
 
 ```
 Indeksy numerujemy jak w powyższej liście indeksów
+```
 
- 1. Pierwsze zapytanie teraz zamiast robić 2 full scany wykorzystuje do tego na salesorderheader indeks numer 1, a do 
- tego na salesorderdetails indeksu numer 4. Dzięki temu wyciąga szybciej dane z tabeli bo nie musi przeglądać
- całej tabeli. Join też jest sdzybszy bo matchuje wiersze używając indeksów.
- 
- 2. Zamiast full scan robiony jest index scan dla teabli salesorderheader wykorzysuje indeks numer 3 a dla 
- salesorderdetails indeks numer 5. Indeks numer 3 pozwala wyciągnąć po rosnącej dacie SalesOrderID.
- Indeks numer 5 wyciąga sortując po SalesOrderID i ProductID dane potrzebne do sum. Powoduje to, że
- po joinie dane są już przygotowane do zrobienia groupby dzięki czemu jest szybszy. 
- 
- 3. To samo co w 1
- 
- 4. Robiony jest index seek który robiy where-a wyciągając z tabeli salesorderdetails dane o odpowienim 
+```
+ 1. Pierwsze zapytanie dzięki indeksom zamiast robić 2 full scany wykorzystuje indeks numer 1 do wyciągnięcia z salesorderheader
+ rekordów spełniających warunek z datą, a następnie indeks numer 4 do wyciągnięcia z salesorderdetails rekordów z pasującym SalesOrderID.
+ Wykorzystanie tych indeksów powoduje też że zmieniony został sposób wykonywania inner joina z hash match na nested loops, który
+ z wykorzystaniem indeksów jest szybszy (prawdopodobnie z powodu niewielkiej liczby wierszy do której trzeba dopasować wiersz z drugiej tabeli).
+```
+![](img/image11.png)
+
+```
+ 2. Zamiast 2 full scanów wykonywane są 2 full index scany, pierwszy dla tabeli salesorderheader wykorzystuje indeks numer 3 a drugi 
+ dla tabeli salesorderdetails używa indeksu numer 5. Indeks 3 wyciąga SalesOrderID posortowane po OrderDate, natomiast indeks 5 sortując po 
+ SalesOrderID i ProductID wyciąga dane potrzebne do policzenia sum orderqty, unitpricediscount i linetotal, dzięki temu po joinie tak 
+ pobrane dane są już posortowane po OrderDate i ProductID co pozwala na szybsze policzenie sum do groupby.
+```
+![](img/image12.png)
+
+```
+ 3. Plan wykonania taki sam jak w 1. oraz wykorzystywane są te same indeksy.
+```
+![](img/image13.png)
+
+```
+ 4. Wykonywany jest index seek który wyciąga z tabeli salesorderdetails dane o odpowienim 
  carriertrackingnumber przy pomocy indeksu numer 6, dane są od razu sortowane po SalesOrderID jeszcze przed joinem.
  Dla wyciągniętych SalesOrderID robiony jest drugi index seek na tabeli salesorderheader używający indeksu numer 2,
  który wyciąga pozostałe potrzebne dane. Na koniec robiony jest join i dane po joinie są już posortowane.
 ```
+![](img/image14.png)
 
 ---
 
@@ -322,7 +361,10 @@ Jakie są według Ciebie najważniejsze pola?
 ---
 > Wyniki: 
 
+![](img/image15.png)
+
 ```
+Naszym zdaniem najważniejsze pola to:
  - database_id, object_id, index_id (pola pozwalające na identyfikację rekordu)
  - index_type_desc (typ indeksu)
  - avg_fragmentation_in_percent (średni procent fragmentacji, może sugerować kiedy należy przebudować indeks)
@@ -362,7 +404,23 @@ and index_id not in (0) --only clustered and nonclustered indexes
 > Wyniki: 
 > zrzut ekranu/komentarz:
 
+![](img/image16.png)
+
 ```
+Zapytanie zwróciło indeksy jako nazwe tabeli i numer indeksu, aby odczytać nazwy indeksów wykonaliśmy dodatkowe zapytanie:
+```
+
+```sql
+select sys.objects.name, sys.indexes.index_id, sys.indexes.name
+from sys.indexes
+inner join sys.objects on sys.indexes.object_id = sys.objects.object_id
+where sys.objects.name in ('JobCandidate', 'ProductModel', 'BillOfMaterials', 'WorkOrder', 'WorkOrderRouting')
+```
+
+![](img/image17.png)
+
+```
+Ostatecznie odczytaliśmy nazwy indeksów wymagających reorganizacji:
 - PK_JobCandidate_JobCandidateID
 - PK_ProductModel_ProductModelID
 - PK_BillOfMaterials_BillOfMaterialsID
@@ -396,7 +454,10 @@ and index_id not in (0) --only clustered and nonclustered indexes
 > Wyniki: 
 > zrzut ekranu/komentarz:
 
+![](img/image19.png)
+
 ```
+W analogiczny sposób odczytaliśmy nazwy indeksów wymagających przebudowy:
 - XMLPATH_Person_Demographics
 - XMLPROPERTY_Person_Demographics
 - XMLVALUE_Person_Demographics
@@ -424,10 +485,12 @@ reorganizacja.
 Sprawdź co przechowuje tabela sys.dm_db_index_usage_stats:
 
 ---
-> Wyniki: 
+> Wyniki:
+
+![](img/image18.png)
 
 ```
-Przechowuje informacje na temat liczy użyć i daty ostatniego użycia operacji seek, scan, lookup i update
+Przechowuje informacje na temat liczby użyć i daty ostatniego użycia operacji seek, scan, lookup i update
 na poszczególnych indeksach przez użytkownika i system.
 ```
 
