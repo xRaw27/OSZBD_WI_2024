@@ -107,8 +107,11 @@ Skomentuj oba zapytania. Czy indeks został użyty w którymś zapytaniu, dlacze
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Indeks został użyty w pierwszym zapytaniu (Index Scan), ponieważ klauzula where w zapytaniu mieści się w przedziale
+klauzuli where w indeksie. Indeks nie został za to użyty w drugim zapytaniu (Table Scan), ponieważ przedziały w 
+klauzulach where zapytania i indeksu są rozłączne, a więc indeks nie zawiera rekordów, które są wyciągane z tabeli przy
+tym zapytaniu. Indeksy z warunkiem zawierają tylko te rekordy, które spełniają owy warunek.
 ```
 
 
@@ -142,8 +145,10 @@ Wypisz ponownie sto pierwszych zamówień. Co się zmieniło?
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Bez indeksu wykonywane są operacje Table Scan oraz TopN Sort, a więc po pobraniu rekordów są one dodatkowo sortowane. 
+Po stworzeniu indeksu wykonywane są operacje Culstered Index Scan oraz Top, a więc po pobraniu rekordów nie są one
+dodatkowo sortowane, ponieważ są już w poprawnej kolejności dzięki zastosowaniu indeksu klastującego.
 ```
 
 
@@ -161,8 +166,10 @@ Dodaj sortowanie według OrderDate ASC i DESC. Czy indeks działa w obu przypadk
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Indeks działa zarówno dla sortowania ASC (kolejność w jakiej rekordy są fizycznie posortowane) jak i DESC (kolejność
+odwrotna) i w żadnym z przypadków nie ma dodatkowego sortowania. Wynika stąd, że nie ma potrzeby tworzenia dodatkowego
+indeksu z odwrotną kolejnością sortowania, jeżeli planujemy wykonywać zapytania z sortowaniem.  
 ```
 
 
@@ -231,8 +238,11 @@ Sprawdź różnicę pomiędzy przetwarzaniem w zależności od indeksów. Porów
 ---
 > Wyniki: 
 
-```sql
---  ...
+```
+Dla obu indeksów plany wykonania są bardzo podobne, najpierw wykonywany jest Index Scan (na odpowiednim indeksie)
+następnie Hash Match aby pogrupować rekordy, Compute Scalar aby wyliczyć sumy i średnie, a na końcu rekordy są sortowane
+według productid. Istotną różnicą między wykonaniami są natomiast czasy trwania zapytań oraz ich koszt, zapytanie z
+indeksem typu ColumnStore wykonuje się dużo szybciej i efektowniej niż przy użyciu indeksu klastrowanego. 
 ```
 
 # Zadanie 4 – własne eksperymenty
