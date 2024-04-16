@@ -570,7 +570,9 @@ dbcc ind ('adventureworks2017', 'person.address', 1)
 Zapisz sobie kilka różnych typów stron, dla różnych indeksów:
 
 ---
-> Wyniki: 
+> Wyniki:
+
+![](img/image20.png)
 
 ```
 - 11712 person.address, 1, PageType 1
@@ -598,6 +600,97 @@ Zapisz obserwacje ze stron. Co ciekawego udało się zaobserwować?
 
 ---
 > Wyniki: 
+
+```
+> dbcc page('adventureworks2017', 1, 11712, 3)
+PAGE: (1:11712)
+BUFFER:
+BUF @0x0000000650F03300
+bpage = 0x0000000E1965E000          bPmmpage = 0x0000000000000000       bsort_r_nextbP = 0x0000000000000000
+bsort_r_prevbP = 0x0000000000000000 bhash = 0x0000000000000000          bpageno = (1:11712)
+bpart = 4                           bstat = 0x9                         breferences = 0
+berrcode = 0                        bUse1 = 22500                       bstat2 = 0x0
+blog = 0x15a                        bsampleCount = 1                    bIoCount = 0
+resPoolId = 0                       bcputicks = 130                     bReadMicroSec = 753
+bDirtyPendingCount = 0              bDirtyContext = 0x0000000000000000  bDbPageBroker = 0x0000000000000000
+bdbid = 6                           bpru = 0x0000000E04CA0040
+PAGE HEADER:
+Page @0x0000000E1965E000
+m_pageId = (1:11712)                m_headerVersion = 1                 m_type = 1
+m_typeFlagBits = 0x0                m_level = 0                         m_flagBits = 0x200
+m_objId (AllocUnitId.idObj) = 268   m_indexId (AllocUnitId.idInd) = 256 Metadata: AllocUnitId = 72057594055491584
+Metadata: PartitionId = 72057594047889408                                Metadata: IndexId = 1
+Metadata: ObjectId = 1029578706     m_prevPage = (1:12010)              m_nextPage = (1:11713)
+pminlen = 36                        m_slotCnt = 58                      m_freeCnt = 32
+m_freeData = 8044                   m_reservedCnt = 0                   m_lsn = (37:1228:307)
+m_xactReserved = 0                  m_xdesId = (0:1390)                 m_ghostRecCnt = 0
+m_tornBits = 2108258024             DB Frag ID = 1
+Allocation Status
+GAM (1:2) = ALLOCATED               SGAM (1:3) = NOT ALLOCATED          PFS (1:8088) = 0x40 ALLOCATED   0_PCT_FULL
+DIFF (1:6) = NOT CHANGED            ML (1:7) = NOT MIN_LOGGED
+Slot 0 Offset 0x60 Length 128
+Record Type = PRIMARY_RECORD        Record Attributes =  NULL_BITMAP VARIABLE_COLUMNS
+Record Size = 128
+Memory Dump @0x000000066E2A6060
+0000000000000000:   30002400 346b0000 0e000000 aa9a06fd 12ad4c4a  0.$.4k......ª.ý.­LJ
+0000000000000014:   a54823b3 5dfeb241 00000000 d0a00000 09000400  ¥H#³]þ²A....Ð ..	...
+0000000000000028:   05005800 58006200 6a008000 35003100 31003700  ..X.X.b.j...5.1.1.7.
+000000000000003C:   20004f00 61006b00 20004300 72006500 65006b00   .O.a.k. .C.r.e.e.k.
+0000000000000050:   20004300 74002e00 4c006500 65006400 73004c00   .C.t...L.e.e.d.s.L.
+0000000000000064:   45003100 3800e610 0000010c 72c2b224 2fe04a40  E.1.8.æ.....rÂ²$/àJ@
+0000000000000078:   16902e7e b1b7f8bf                             ...~±·ø¿
+Slot 0 Column 1 Offset 0x4 Length 4 Length (physical) 4
+AddressID = 27444
+Slot 0 Column 2 Offset 0x34 Length 36 Length (physical) 36
+AddressLine1 = 5117 Oak Creek Ct.
+...
+```
+
+```
+> dbcc page('adventureworks2017', 1, 1135, 3)
+PAGE: (1:1135)
+BUFFER:
+BUF @0x0000000650F16000
+bpage = 0x0000000E19EF0000          bPmmpage = 0x0000000000000000       bsort_r_nextbP = 0x0000000000000000
+bsort_r_prevbP = 0x0000000000000000 bhash = 0x0000000000000000          bpageno = (1:1135)
+bpart = 4                           bstat = 0x9                         breferences = 1
+berrcode = 0                        bUse1 = 22626                       bstat2 = 0x0
+blog = 0x15a                        bsampleCount = 0                    bIoCount = 0
+resPoolId = 0                       bcputicks = 0                       bReadMicroSec = 1074
+bDirtyPendingCount = 0              bDirtyContext = 0x0000000000000000  bDbPageBroker = 0x0000000000000000
+bdbid = 6                           bpru = 0x0000000E04CA0040
+PAGE HEADER:
+Page @0x0000000E19EF0000
+m_pageId = (1:1135)                 m_headerVersion = 1                 m_type = 10
+m_typeFlagBits = 0x0                m_level = 0                         m_flagBits = 0x200
+m_objId (AllocUnitId.idObj) = 289   m_indexId (AllocUnitId.idInd) = 256 Metadata: AllocUnitId = 72057594056867840
+Metadata: PartitionId = 72057594049134592                                Metadata: IndexId = 1
+Metadata: ObjectId = 1845581613     m_prevPage = (0:0)                  m_nextPage = (0:0)
+pminlen = 90                        m_slotCnt = 2                       m_freeCnt = 6
+m_freeData = 8182                   m_reservedCnt = 0                   m_lsn = (37:2043:182)
+m_xactReserved = 0                  m_xdesId = (0:0)                    m_ghostRecCnt = 0
+m_tornBits = -734821128             DB Frag ID = 1
+Allocation Status
+GAM (1:2) = ALLOCATED               SGAM (1:3) = NOT ALLOCATED          PFS (1:1) = 0x70 IAM_PG MIXED_EXT ALLOCATED   0_PCT_FULL
+DIFF (1:6) = NOT CHANGED            ML (1:7) = NOT MIN_LOGGED
+IAM: Header @0x000000066AE16064 Slot 0, Offset 96
+sequenceNumber = 0                  status = 0x0                        objectId = 0
+indexId = 0                         page_count = 0                      start_pg = (1:0)
+IAM: Single Page Allocations @0x000000066AE1608E
+Slot 0 = (0:0)                      Slot 1 = (0:0)                      Slot 2 = (0:0)
+Slot 3 = (0:0)                      Slot 4 = (0:0)                      Slot 5 = (0:0)
+Slot 6 = (0:0)                      Slot 7 = (0:0)
+IAM: Extent Alloc Status Slot 1 @0x000000066AE160C2
+(1:0)        - (1:808)      = NOT ALLOCATED
+(1:816)      - (1:840)      =     ALLOCATED
+(1:848)      -              = NOT ALLOCATED
+(1:856)      -              =     ALLOCATED
+(1:864)      - (1:904)      = NOT ALLOCATED
+(1:912)      - (1:1120)     =     ALLOCATED
+(1:1128)     -              = NOT ALLOCATED
+(1:1136)     -              =     ALLOCATED
+(1:1144)     - (1:33784)    = NOT ALLOCATED
+```
 
 ```
 Strona zawiera następujące sekcje: numer strony, buffer, header, allocation status i dane.
