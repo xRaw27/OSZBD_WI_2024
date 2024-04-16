@@ -98,12 +98,17 @@ Zanotuj czas zapytania oraz jego koszt koszt:
 ---
 > Wyniki: 
 
+Pierwsze zapytanie
+![](img/img.png)
+Drugie zapytanie
+![](img/img_1.png)
+
 ```
-Czas zapytania - 1.0ms
-Koszt zapytania - 0.139158
+Czas zapytania - 2.0ms
+Koszt zapytania - 0.150269
 
 Czas zapytania - 2.0ms
-Koszt zapytania - 0.139158
+Koszt zapytania - 0.150269
 ```
 
 
@@ -119,12 +124,17 @@ Jak zmienił się plan i czas? Czy jest możliwość optymalizacji?
 ---
 > Wyniki: 
 
+Pierwsze zapytanie
+![](img/img_2.png)
+Drugie zapytanie
+![](img/img_3.png)
+
 ```
 Czas zapytania - 0.0ms
 Koszt zapytania - 0.00657038
 
 Czas zapytania - 0.0ms
-Koszt zapytania - 0.0507122
+Koszt zapytania - 0.0508893
 
 Czas i koszt poprawił się względem zapytania bez indeksu. Wykonywana jest jedna dodatkowa operacja dostępu do wiersza,
 ponieważ rekordy nie są fizycznie posortowane względem storeid, a jedynie wskaźniki do nich. Gdyby rekordy były już
@@ -143,6 +153,11 @@ Czy zmienił się plan i czas? Skomentuj dwa podejścia w wyszukiwaniu krotek.
 
 ---
 > Wyniki: 
+
+Pierwsze zapytanie
+![](img/img_4.png)
+Drugie zapytanie
+![](img/img_5.png)
 
 ```
 1.
@@ -199,6 +214,8 @@ Co można o nich powiedzieć?
 ---
 > Wyniki: 
 
+![](img/img_6.png)
+
 ```
 Dla każdego zapytania wykonywany jest Table Scan, co oznacza, że podczas zapytania naiwnie przeszukiwane są wszystkie
 rekordy w tabeli, które spełniają warunek. Każde z zapytań możnaby zoptymalizować indeksem.
@@ -217,6 +234,8 @@ Sprawdź plan zapytania. Co się zmieniło?
 ---
 > Wyniki: 
 
+![](img/img_7.png)
+
 ```
 Dla 2 pierwszych zapytań czas i koszt zmalał, a Table Scan został zastąpiony przez Index Seek i Row Id Lookup. 
 Inaczej sytuacja ma się w 3 zapytaniu, gdzie czas i koszt nie zmienił się znacząco, a zamiast Index Seek wykonywana jest
@@ -232,6 +251,8 @@ Czym różni się ten plan od zapytania o `'Osarumwense Agbonile'` . Dlaczego ta
 
 ---
 > Wyniki: 
+
+![](img/img_8.png)
 
 ```
 Tym razem tylko dla 2 zapytania wykorzystywany jest indeks, 1 i 3 zapytanie wykonują Table Scan, tak jak w przypadku,
@@ -263,13 +284,15 @@ Która część zapytania ma największy koszt?
 ---
 > Wyniki: 
 
+![](img/img_9.png)
+
 ```
 Sort:
-Czas zapytania - 23.0ms
+Czas zapytania - 13.0ms
 Koszt zapytania - 0.527433
 
 Full scan:
-Czas zapytania - 4.0ms
+Czas zapytania - 2.0ms
 Koszt zapytania - 0.0700485
 
 Największy koszt ma operacja Sort
@@ -292,11 +315,13 @@ include (orderqty, duedate);
 ---
 > Wyniki: 
 
+![](img/img_10.png)
+
 ```
 Operacje Sort i Full Scan zostały zastąpione przez jedną operację Full index scan.
 Jej koszt i czas to:
 Czas zapytania - 3.0ms
-Koszt zapytania - 0.0396782
+Koszt zapytania - 0.0405627
 
 Udało nam się zredukować koszt operacji Sort, dodając indeks, przez co nie jest ona już konieczna, a wykonywany jest
 jedynie full index scan.
@@ -334,7 +359,19 @@ go
 
 Czy jest widoczna różnica w zapytaniach? Jeśli tak to jaka? Aby wymusić użycie indeksu użyj `WITH(INDEX(Address_PostalCode_1))` po `FROM`:
 
-> Wyniki: 
+> Wyniki:
+
+```sql
+select addressline1, addressline2, city, stateprovinceid, postalcode
+from address with(index(address_postalcode_1))
+where postalcode between '98000' and '99999'
+
+select addressline1, addressline2, city, stateprovinceid, postalcode
+from address with(index(address_postalcode_2))
+where postalcode between '98000' and '99999'
+```
+
+![](img/img_11.png)
 
 ```
 Oba zapytania mają ten sam plan, koszt i czas wykonania, zamiast Table Scan wykonywany jest Index Seek.
@@ -357,6 +394,8 @@ Który jest większy? Jak można skomentować te dwa podejścia do indeksowania?
 
 
 > Wyniki: 
+
+![](img/img_12.png)
 
 ```
 Indeks address_postalcode_2 jest większy. W tym indeksie wszystkie kolumny użyte do jego stworzenia są częścią b-drzewa,
@@ -406,6 +445,8 @@ Czy indeks został użyty? Dlaczego?
 
 > Wyniki: 
 
+![](img/img_13.png)
+
 ```
 Dalej jest wykonywany Full scan a nie Full index scan oraz nie zmienił się koszt, co sugeruje że indeks nie jest używany
 ```
@@ -413,6 +454,8 @@ Dalej jest wykonywany Full scan a nie Full index scan oraz nie zmienił się kos
 Spróbuj wymusić indeks. Co się stało, dlaczego takie zachowanie?
 
 > Wyniki: 
+
+![](img/img_14.png)
 
 ```
 Przez to że w indeksie brakuje include(productassemblyid), to pomimo użycia indeksu konieczne jest wykonanie

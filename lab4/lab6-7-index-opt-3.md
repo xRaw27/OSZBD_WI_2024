@@ -107,6 +107,11 @@ Skomentuj oba zapytania. Czy indeks został użyty w którymś zapytaniu, dlacze
 ---
 > Wyniki: 
 
+Pierwsze zapytanie
+![](img/img.png)
+Drugie zapytanie
+![](img/img_1.png)
+
 ```
 Indeks został użyty w pierwszym zapytaniu (Index Scan), ponieważ klauzula where w zapytaniu mieści się w przedziale
 klauzuli where w indeksie. Indeks nie został za to użyty w drugim zapytaniu (Table Scan), ponieważ przedziały w 
@@ -145,6 +150,11 @@ Wypisz ponownie sto pierwszych zamówień. Co się zmieniło?
 ---
 > Wyniki: 
 
+Przed stworzeniem indeksu
+![](img/img_2.png)
+Po stworzeniu indeksu
+![](img/img_3.png)
+
 ```
 Bez indeksu wykonywane są operacje Table Scan oraz TopN Sort, a więc po pobraniu rekordów są one dodatkowo sortowane. 
 Po stworzeniu indeksu wykonywane są operacje Culstered Index Scan oraz Top, a więc po pobraniu rekordów nie są one
@@ -165,6 +175,11 @@ Dodaj sortowanie według OrderDate ASC i DESC. Czy indeks działa w obu przypadk
 
 ---
 > Wyniki: 
+
+ASC
+![](img/img_4.png)
+DESC
+![](img/img_5.png)
 
 ```
 Indeks działa zarówno dla sortowania ASC (kolejność w jakiej rekordy są fizycznie posortowane) jak i DESC (kolejność
@@ -236,13 +251,20 @@ Sprawdź różnicę pomiędzy przetwarzaniem w zależności od indeksów. Porów
 
 
 ---
-> Wyniki: 
+> Wyniki:
+
+Indeks klastrowany
+![](img/img_6.png)
+Indeks typu ColumnStore
+![](img/img_7.png)
 
 ```
 Dla obu indeksów plany wykonania są bardzo podobne, najpierw wykonywany jest Index Scan (na odpowiednim indeksie)
 następnie Hash Match aby pogrupować rekordy, Compute Scalar aby wyliczyć sumy i średnie, a na końcu rekordy są sortowane
 według productid. Istotną różnicą między wykonaniami są natomiast czasy trwania zapytań oraz ich koszt, zapytanie z
-indeksem typu ColumnStore wykonuje się dużo szybciej i efektowniej niż przy użyciu indeksu klastrowanego. 
+indeksem typu ColumnStore wykonuje się dużo szybciej i efektowniej niż przy użyciu indeksu klastrowanego.
+Indeksy ColumnStore przechowują fizycznie dane w kolumnach a nie w wierszach, co pozwala na dużo większą kompresję
+i szybszy do nich dostęp ponieważ wzystkie dane są tego samego typu oraz mają podobne wartości.
 ```
 
 # Zadanie 4 – własne eksperymenty
