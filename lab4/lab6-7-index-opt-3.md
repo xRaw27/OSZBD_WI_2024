@@ -295,11 +295,133 @@ Odpowiedź powinna zawierać:
 
 > Wyniki: 
 
+Wygenerowano tabelę `dbo.PurchaseOrderHistory`
+
 ```sql
---  ...
+use lab5;
+
+create table dbo.PurchaseOrderHistory(
+    PurchaseOrderID int not null,
+    RevisionNumber tinyint,
+    Status tinyint,
+    EmployeeID int,
+    VendorID int,
+    ShipMethodID int,
+    OrderDate datetime,
+    ShipDate datetime,
+    SubTotal money,
+    TaxAmt money,
+    Freight money,
+    TotalDue money,
+    ModifiedDate datetime
+);
+
+insert into dbo.PurchaseOrderHistory
+ select sh.*
+ from adventureworks2017.Purchasing.PurchaseOrderHeader sh
+go 60;
+
+select count(*) as count from PurchaseOrderHistory;
+```
+![img.png](img/img_8.png)
+
+### Eksperyment 1
+
+Stworzono nieklastrowany indeks z klauzulą include `date_employee_index` zawierający informacje o dacie zamówienia i
+wykonującego je pracownika.
+
+```sql
+create nonclustered index date_employee_index on PurchaseOrderHistory(OrderDate) include (EmployeeID);
 ```
 
+Pozwala on efektywnie sprawdzać ile zamówień wykonali poszczególni pracownicy w danym dniu/przedziale czasowym, ponieważ
+wykonany na tabeli zostanie Index Seek lub Index Scan w zależności od tego jaki procent wszystkich rekordów objemuje
+wybrany przedział czasowy.
 
+```sql
+select EmployeeID, count(*) as OrdersCount from PurchaseOrderHistory where OrderDate = '2014-06-16' group by EmployeeID;
+```
+![img_1.png](img/img_9.png)
+
+Jeżeli jednak postanowimy dodać nową kolumnę do zapytania, np. średnią wartość zamówienia w danym przedziale czasowym to
+zauważymy, że stworzony wcześniej indeks nie jest używany.
+
+```sql
+select EmployeeID, count(*) as OrdersCount, avg(TotalDue) as AverageCost
+from PurchaseOrderHistory
+where OrderDate = '2014-06-16'
+group by EmployeeID;
+```
+![img_2.png](img/img_10.png)
+
+Wymuszając użycie indeksu możemy zauważyć, że najbardziej kosztowną operacją jest RID Lookup, czyli dostęp do wartości
+kolumny TotalDue, przez co łączny koszt przewyższa ten kiedy przeszukiwana jest cała tabela.
+
+![img_3.png](img/img_11.png)
+
+Można ten problem rozwiązać zamieniając indeks na taki, który będzie zawierał również kolumnę TotalDue.
+
+```sql
+drop index date_employee_index on PurchaseOrderHistory;
+create nonclustered index date_employee_total_index on PurchaseOrderHistory (OrderDate) include (EmployeeID, TotalDue);
+```
+![img_4.png](img/img_12.png)
+
+Jeżeli jednak wykonamy teraz pierwotne zapytanie to zauważymy, że koszt wykonania zapytania zwiększył się używając
+rozszerzonego indeksu.
+
+![img_5.png](img/img_13.png)
+
+Wynika stąd, że podczas tworzenia indeksów z klauzulą include należy uważać na to, których kolumn używamy, zbyt mała
+ilość sprawi, że zapytania nieuwzględnione w indeksie będą bardziej kosztowne, nastomiast zbyt duża ilość spowolni
+wszystkie pozostałe zapytania.
+
+### Eksperyment 2
+
+Przenalizujmy podobny przykład co w zadaniu 3, stworzono 2 indeksy na kolumnach OrderDate, PurchaseOrderID, TotalDue -
+jeden klastrowany a drugi typu columnstore.
+
+```sql
+create columnstore index columnstore_index on PurchaseOrderHistory(OrderDate, PurchaseOrderID, TotalDue);
+create clustered index clustered_index on PurchaseOrderHistory(OrderDate, PurchaseOrderID, TotalDue);
+```
+
+Następnie za pomocą tych indeksów pobrano ID i wartość 3 najdroższych zamówień w roku 2014.
+
+```sql
+select top 3 PurchaseOrderID, TotalDue
+from PurchaseOrderHistory with (index (clustered_index))
+where year(OrderDate) = 2014
+order by TotalDue;
+
+select top 3 PurchaseOrderID, TotalDue
+from PurchaseOrderHistory with (index (columnstore_index))
+where year(OrderDate) = 2014
+order by TotalDue;
+```
+![img_6.png](img/img_14.png)
+
+Jak widać użycie indeksu typu columnstore powoduje prawie 4-krotnie mniejszy koszt wykonania zapytania. Można więc
+zastanowić się, czy indeksy columnstore nie są lepsze w każdym przypadku lepsze niż klasyczne indeksy. Jeżeli jednak
+dodamy do zapytania jedną dodatkową kolumnę, np. ID sprzedawcy, to wyniki będą już nieco inne.
+
+```sql
+select top 3 PurchaseOrderID, TotalDue, VendorID
+from PurchaseOrderHistory with (index (clustered_index))
+where year(OrderDate) = 2014
+order by TotalDue;
+
+select top 3 PurchaseOrderID, TotalDue, VendorID
+from PurchaseOrderHistory with (index (columnstore_index))
+where year(OrderDate) = 2014
+order by TotalDue;
+```
+
+![img_7.png](img/img_15.png)
+
+Dla indeksu klastrowanego koszt wykonania zapytania pozostał taki sam, natomiast dla indeksu typu columnstore wzrósł
+ponad 20-krotnie! Oznacza to, że klastrowane indeksy są dużo bardziej uniwersalne, natomiast indeksy typu columnstore,
+choć bardzo szybkie, muszą być dostosowane pod konkretne zapytanie.
 
 
 |         |     |     |     |
