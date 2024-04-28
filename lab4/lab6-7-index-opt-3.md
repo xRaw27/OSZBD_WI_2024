@@ -325,6 +325,29 @@ select count(*) as count from PurchaseOrderHistory;
 ```
 ![img.png](img/img_8.png)
 
+Oraz tabelę `dbo.PurchaseOrderDetail`
+
+```sql
+create table dbo.PurchaseOrderDetail
+(
+    PurchaseOrderID       int           not null,
+    PurchaseOrderDetailID int           not null,
+    DueDate               datetime      not null,
+    OrderQty              smallint      not null,
+    ProductID             int           not null,
+    UnitPrice             money         not null,
+    LineTotal             money         not null,
+    ReceivedQty           decimal(8, 2) not null,
+    RejectedQty           decimal(8, 2) not null,
+    StockedQty            decimal(9, 2) not null,
+    ModifiedDate          datetime      not null
+);
+
+insert into dbo.PurchaseOrderDetail
+select pod.*
+from adventureworks2017.Purchasing.PurchaseOrderDetail pod;
+```
+
 ### Eksperyment 1
 
 Stworzono nieklastrowany indeks z klauzulą include `date_employee_index` zawierający informacje o dacie zamówienia i
@@ -423,6 +446,90 @@ Dla indeksu klastrowanego koszt wykonania zapytania pozostał taki sam, natomias
 ponad 20-krotnie! Oznacza to, że klastrowane indeksy są dużo bardziej uniwersalne, natomiast indeksy typu columnstore,
 choć bardzo szybkie, muszą być dostosowane pod konkretne zapytanie.
 
+
+### Eksperyment 3
+
+Spróbujemy teraz przeanalizować indeksy warunkowe oraz co zmieni zastąpienie indeksu warunkowego indeksem bez warunku.
+
+W tym celu rozważmy scenariusz, w którym chcemy znaleźć dla zamówień o statusie 1 sumę OrderQty dla każdego produktu, 
+możemy sobie wyobrazić że status ten odpowiada zamówieniom, które dopiero co wpłyneły do systemu i ważne jest dla nas, 
+aby często sprawdzać jaką ilość danego produktu potrzebujemy, aby zrealizować te zamówienia.
+
+Powyższy scenariusz jest realizowany przez następujące zapytanie:
+```sql
+select ProductID, sum(OrderQty) as SumQty
+from PurchaseOrderHistory as o
+         join dbo.purchaseorderdetail p on o.PurchaseOrderID = p.PurchaseOrderID
+where Status = 1
+group by ProductID
+order by SumQty desc
+```
+I daje następujące wyniki:
+
+![](img/img_22.png)
+
+W pierwszej kolejności tworzymy prosty indeks klastrowany na PurchaseOrderID w tabeli PurchaseOrderDetail, natomiast
+w analizie skupimy się na wyborze indeksu w tabeli PurchaseOrderHistory.
+
+```sql
+create clustered index purchaseorderdetail_clustered_index on PurchaseOrderDetail (PurchaseOrderID)
+```
+
+Koszt zapytania bez żadnego indeksu (w tabeli PurchaseOrderHistory) to: 3.05357
+
+![](img/img_20.png)
+
+Patrząc na zapytanie, widzimy tu możliwość zastosowania indeksu warunkowego z warunkiem `where Status = 1`, aby
+zoptymalizować nasze zpytanie wystarczy, że indeks będzie obejmował kolumnę kluczową `PurchaseOrderID`. 
+Zakładając (zgodnie ze scenraiuszem eksperymentu), że status 1 dotyczy tylko nowych zamówień, to indeks ten obejmuje
+jedynie niewielką część wierszy z tabeli, zatem przewaga takiego indeksu (nad indeksem bez warunku obejmującym wszystkie
+wiersze), jest taka, że wymaga on dużo rzadszych aktualizacji (niższy koszt utrzymania indeksu) oraz będzie 
+zajmował fizycznie mniej miejsca.
+
+```sql
+create nonclustered index purchaseorderhistory_range_index
+    on PurchaseOrderHistory (PurchaseOrderID)
+    where Status = 1;
+```
+
+Koszt zapytania z takim indeksem wynosi 0.469743
+
+![](img/img_16.png)
+
+Jeśli przy tworzeniu pominiemy warunek, to zauważmy że w przypadku naszego zapytania indeks ten stanie się nieużyteczny.
+
+```sql
+create nonclustered index purchaseorderhistory_nonrange1_index
+    on PurchaseOrderHistory (PurchaseOrderID)
+```
+
+Wymuszenie takiego indeksu, powowduje że koszt zapytania jest ponad 10 krotnie wyższy niż zapytania bez żadnego indeksu.
+
+![](img/img_17.png)
+
+Aby stworzyć użyteczny indeks musimy dodać `Status` jako kolumnę kluczową, natomiast `PurchaseOrderID` może pozostać
+kolumną kluczową lub dołączoną.
+
+```sql
+create nonclustered index purchaseorderhistory_nonrange2_index
+    on PurchaseOrderHistory (Status, PurchaseOrderID)
+    
+create nonclustered index purchaseorderhistory_nonrange3_index
+    on PurchaseOrderHistory (Status) include (PurchaseOrderID)
+```
+
+Różnica pomiędzy dwoma powyższymi indeksami jest taka, że w przypadku gdy `PurchaseOrderID` pozostanie kolumną kluczową
+to powoduje to zastąpienie Hash Join przez Merge Join, który ma wtedy minimalnie mniejszy koszt.
+
+![](img/img_18.png)
+
+![](img/img_19.png)
+
+Ostatecznie najniższy koszt został uzyskany przy pomocy indeksu warunkowego, chociaż różnica jest nieznaczna 
+(0.469 z warunkowym, 0.493 bez warunku z kolumnami kluczowymi Status i PurchaseOrderID). Należy jednak pamiętać o
+innych zaletach indeksów warunkówych, czyli niższym koszcie utrzymywania oraz przechowywania indeksu.
+
+![](img/img_21.png)
 
 |         |     |     |     |
 | ------- | --- | --- | --- |
