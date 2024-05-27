@@ -163,7 +163,7 @@ Utworzono na nich odpowiednio bazy `sub2_db` i `sub3_db`
 
 ![img_40.png](img_40.png)
 
-Przekopiowano schemat tabeli `pub_tbl` do nowo utworzonych bazc
+Przekopiowano schemat tabeli `pub_tbl` do nowo utworzonych baz
 
 ![img_41.png](img_41.png)
 
@@ -198,3 +198,9 @@ Wszystkie bazy posiadają takie same rekody w tabeli
 ![img_52.png](img_52.png)
 
 ![img_53.png](img_53.png)
+
+Następnie zmieniono sposób replikacji na kaskadowy (publisher -> sub1 -> sub2 -> sub3)
+
+![img_54.png](img_54.png)
+
+![img_55.png](img_55.png)
