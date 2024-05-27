@@ -1,8 +1,8 @@
 # Raport
 
-# Przetwarzanie i analiza danych przestrzennych 
-# Oracle spatial
+# Przetwarzanie i analiza danych przestrzennych
 
+# Oracle spatial
 
 ---
 
@@ -10,7 +10,8 @@
 
 --- 
 
-Celem ćwiczenia jest zapoznanie się ze sposobem przechowywania, przetwarzania i analizy danych przestrzennych w bazach danych
+Celem ćwiczenia jest zapoznanie się ze sposobem przechowywania, przetwarzania i analizy danych przestrzennych w bazach
+danych
 (na przykładzie systemu Oracle spatial)
 
 Swoje odpowiedzi wpisuj w miejsca oznaczone jako:
@@ -24,7 +25,8 @@ Swoje odpowiedzi wpisuj w miejsca oznaczone jako:
 
 ---
 
-Do wykonania ćwiczenia (zadania 1 – 7) i wizualizacji danych wykorzystaj Oracle SQL Develper. Alternatywnie możesz wykonać analizy w środowisku Python/Jupyter Notebook
+Do wykonania ćwiczenia (zadania 1 – 7) i wizualizacji danych wykorzystaj Oracle SQL Develper. Alternatywnie możesz
+wykonać analizy w środowisku Python/Jupyter Notebook
 
 Do wykonania zadania 8 wykorzystaj środowisko Python/Jupyter Notebook
 
@@ -33,6 +35,7 @@ Raport należy przesłać w formacie pdf.
 Należy też dołączyć raport zawierający kod w formacie źródłowym.
 
 Np.
+
 - plik tekstowy .sql z kodem poleceń
 - plik .md zawierający kod wersji tekstowej
 - notebook programu jupyter – plik .ipynb
@@ -56,7 +59,6 @@ US_STATES
 --  ...
 ```
 
-
 US_INTERSTATES
 
 
@@ -65,7 +67,6 @@ US_INTERSTATES
 ```sql
 --  ...
 ```
-
 
 US_CITIES
 
@@ -76,7 +77,6 @@ US_CITIES
 --  ...
 ```
 
-
 US_RIVERS
 
 
@@ -85,7 +85,6 @@ US_RIVERS
 ```sql
 --  ...
 ```
-
 
 US_COUNTIES
 
@@ -96,7 +95,6 @@ US_COUNTIES
 --  ...
 ```
 
-
 US_PARKS
 
 
@@ -105,7 +103,6 @@ US_PARKS
 ```sql
 --  ...
 ```
-
 
 # Zadanie 2
 
@@ -116,30 +113,28 @@ Pokaż wynik na mapie.
 prostokąt
 
 ```sql
-SELECT  sdo_geometry (2003, 8307, null,
-sdo_elem_info_array (1,1003,3),
-sdo_ordinate_array ( -117.0, 40.0, -90., 44.0)) g
+SELECT sdo_geometry(2003, 8307, null,
+                    sdo_elem_info_array(1, 1003, 3),
+                    sdo_ordinate_array(-117.0, 40.0, -90., 44.0)) g
 FROM dual
 ```
 
-
-
 > Wyniki, zrzut ekranu, komentarz
 
-```sql
---  ...
-```
+Wyświetlenie geometrii na mapie:
 
+![img.png](zad2/img.png)
 
 Użyj funkcji SDO_FILTER
 
 ```sql
-SELECT state, geom FROM us_states
-WHERE sdo_filter (geom,
-sdo_geometry (2003, 8307, null,
-sdo_elem_info_array (1,1003,3),
-sdo_ordinate_array ( -117.0, 40.0, -90., 44.0))
-) = 'TRUE';
+SELECT state, geom
+FROM us_states
+WHERE sdo_filter(geom,
+                 sdo_geometry(2003, 8307, null,
+                              sdo_elem_info_array(1, 1003, 3),
+                              sdo_ordinate_array(-117.0, 40.0, -90., 44.0))
+      ) = 'TRUE';
 ```
 
 Zwróć uwagę na liczbę zwróconych wierszy (16)
@@ -147,20 +142,24 @@ Zwróć uwagę na liczbę zwróconych wierszy (16)
 
 > Wyniki, zrzut ekranu, komentarz
 
+Wykonanie zapytania z sdo_filter, zostało zwrócone 16 wierszy:
+
+![img_1.png](zad2/img_1.png)
+
+Pokazanie wyników zapytania z sdo_filter na mapie:
+
+![img_2.png](zad2/img_2.png)
+
+Użyj funkcji SDO_ANYINTERACT
+
 ```sql
---  ...
-```
-
-
-Użyj funkcji  SDO_ANYINTERACT
-
-```sql
-SELECT state, geom FROM us_states
-WHERE sdo_anyinteract (geom,
-sdo_geometry (2003, 8307, null,
-sdo_elem_info_array (1,1003,3),
-sdo_ordinate_array ( -117.0, 40.0, -90., 44.0))
-) = 'TRUE';
+SELECT state, geom
+FROM us_states
+WHERE sdo_anyinteract(geom,
+                      sdo_geometry(2003, 8307, null,
+                                   sdo_elem_info_array(1, 1003, 3),
+                                   sdo_ordinate_array(-117.0, 40.0, -90., 44.0))
+      ) = 'TRUE';
 ```
 
 Porównaj wyniki sdo_filter i sdo_anyinteract
@@ -170,9 +169,28 @@ Pokaż wynik na mapie
 
 > Wyniki, zrzut ekranu, komentarz
 
-```sql
---  ...
-```
+Wykonanie zapytania z sdo_anyinteract, zostało zwrócone 14 wierszy:
+
+![img_4.png](zad2/img_4.png)
+
+Pokazanie wyników zapytania z sdo_anyinteract na mapie:
+
+![img_3.png](zad2/img_3.png)
+
+Porównanie wyników obu zapytań, sdo_filter na czerwono i sdo_anyinteract na żółto:
+![img_5.png](zad2/img_5.png)
+
+Analiza wyników:
+
+- Zapytanie z sdo_filter zwróciło 16 wierszy, czyli o 2 więcej niż zapytanie z sdo_anyinteract
+- 14 stanów pokrywa się w wyniku obu zapytań
+- Patrząc na wyświetloną w Oracle SQL Developer mapę, 2 dodatkowe stany zwrócone przez sdo_filter wydają sie nie mieć
+  punktów wspólnych z geometrią (prostokątem)
+- Różnica ta wynika z tego, że funkcja sdo_filter korzysta z Minimum Bounding Rectangle (MBR), czyli wyznacza
+  najmniejszy prostokąt w który da się wpisać daną figurę nie będącą prostokątem i dopiero na tych figurach wyszykuje
+  czy się przecinają. Zaletą tego podejścia jest to że obliczenia są prostsze i zdecydowanie mniej kosztowne (
+  szczególnie dla skomplikowanych kształtów) dlatego stosuje się ją do wstępnego filtrowania danych. Wadą jest
+  zwracanie "False Positive'ów" tak jak w naszym przypadku 2 dodatkowe stany.
 
 # Zadanie 3
 
@@ -182,25 +200,24 @@ Użyj funkcji SDO_INSIDE
 
 ```sql
 SELECT p.name, p.geom
-FROM us_parks p, us_states s
+FROM us_parks p,
+     us_states s
 WHERE s.state = 'Wyoming'
-AND SDO_INSIDE (p.geom, s.geom ) = 'TRUE';
+  AND SDO_INSIDE(p.geom, s.geom) = 'TRUE';
 ```
 
 W przypadku wykorzystywania narzędzia SQL Developer, w celu wizualizacji na mapie użyj podzapytania
 
 ```sql
-SELECT pp.name, pp.geom  FROM us_parks pp
+SELECT pp.name, pp.geom
+FROM us_parks pp
 WHERE id IN
-(
-    SELECT p.id
-    FROM us_parks p, us_states s
-    WHERE s.state = 'Wyoming'
-    and SDO_INSIDE (p.geom, s.geom ) = 'TRUE'
-)
+      (SELECT p.id
+       FROM us_parks p,
+            us_states s
+       WHERE s.state = 'Wyoming'
+         and SDO_INSIDE(p.geom, s.geom) = 'TRUE')
 ```
-
-
 
 > Wyniki, zrzut ekranu, komentarz
 
@@ -208,28 +225,26 @@ WHERE id IN
 --  ...
 ```
 
-
 ```sql
-SELECT state, geom FROM us_states
+SELECT state, geom
+FROM us_states
 WHERE state = 'Wyoming'
 ```
 
-
-
 > Wyniki, zrzut ekranu, komentarz
 
 ```sql
 --  ...
 ```
-
 
 Porównaj wynik z:
 
 ```sql
 SELECT p.name, p.geom
-FROM us_parks p, us_states s
+FROM us_parks p,
+     us_states s
 WHERE s.state = 'Wyoming'
-AND SDO_ANYINTERACT (p.geom, s.geom ) = 'TRUE';
+  AND SDO_ANYINTERACT(p.geom, s.geom) = 'TRUE';
 ```
 
 W celu wizualizacji użyj podzapytania
@@ -242,29 +257,32 @@ W celu wizualizacji użyj podzapytania
 --  ...
 ```
 
-
 # Zadanie 4
 
 Znajdź wszystkie jednostki administracyjne (us_counties) wewnątrz stanu New Hampshire
 
 ```sql
 SELECT c.county, c.state_abrv, c.geom
-FROM us_counties c, us_states s
+FROM us_counties c,
+     us_states s
 WHERE s.state = 'New Hampshire'
-AND SDO_RELATE ( c.geom,s.geom, 'mask=INSIDE+COVEREDBY') = 'TRUE';
+  AND SDO_RELATE(c.geom, s.geom, 'mask=INSIDE+COVEREDBY') = 'TRUE';
 
 SELECT c.county, c.state_abrv, c.geom
-FROM us_counties c, us_states s
+FROM us_counties c,
+     us_states s
 WHERE s.state = 'New Hampshire'
-AND SDO_RELATE ( c.geom,s.geom, 'mask=INSIDE') = 'TRUE';
+  AND SDO_RELATE(c.geom, s.geom, 'mask=INSIDE') = 'TRUE';
 
 SELECT c.county, c.state_abrv, c.geom
-FROM us_counties c, us_states s
+FROM us_counties c,
+     us_states s
 WHERE s.state = 'New Hampshire'
-AND SDO_RELATE ( c.geom,s.geom, 'mask=COVEREDBY') = 'TRUE';
+  AND SDO_RELATE(c.geom, s.geom, 'mask=COVEREDBY') = 'TRUE';
 ```
 
-W przypadku wykorzystywania narzędzia SQL Developer, w celu wizualizacji danych na mapie należy użyć podzapytania (podobnie jak w poprzednim zadaniu)
+W przypadku wykorzystywania narzędzia SQL Developer, w celu wizualizacji danych na mapie należy użyć podzapytania (
+podobnie jak w poprzednim zadaniu)
 
 
 
@@ -281,24 +299,24 @@ Znajdź wszystkie miasta w odległości 50 mili od drogi (us_interstates) I4
 Pokaż wyniki na mapie
 
 ```sql
-SELECT * FROM us_interstates
+SELECT *
+FROM us_interstates
 WHERE interstate = 'I4'
 
-SELECT * FROM us_states
+SELECT *
+FROM us_states
 WHERE state_abrv = 'FL'
 
-SELECT c.city, c.state_abrv, c.location 
+SELECT c.city, c.state_abrv, c.location
 FROM us_cities c
-WHERE ROWID IN 
-( 
-SELECT c.rowid
-FROM us_interstates i, us_cities c 
-WHERE i.interstate = 'I4'
-AND sdo_within_distance (c.location, i.geom,'distance=50 unit=mile'
-)
+WHERE ROWID IN
+      (SELECT c.rowid
+       FROM us_interstates i,
+            us_cities c
+       WHERE i.interstate = 'I4'
+         AND sdo_within_distance(c.location, i.geom, 'distance=50 unit=mile'
+             )
 ```
-
-
 
 > Wyniki, zrzut ekranu, komentarz
 
@@ -306,20 +324,19 @@ AND sdo_within_distance (c.location, i.geom,'distance=50 unit=mile'
 --  ...
 ```
 
-
 Dodatkowo:
 
-a)     Znajdz wszystkie jednostki administracyjne przez które przechodzi droga I4
+a)Znajdz wszystkie jednostki administracyjne przez które przechodzi droga I4
 
-b)    Znajdz wszystkie jednostki administracyjne w pewnej odległości od I4
+b)Znajdz wszystkie jednostki administracyjne w pewnej odległości od I4
 
-c)     Znajdz rzeki które przecina droga I4
+c)Znajdz rzeki które przecina droga I4
 
-d)    Znajdz wszystkie drogi które przecinają rzekę Mississippi
+d)Znajdz wszystkie drogi które przecinają rzekę Mississippi
 
-e)    Znajdz wszystkie miasta w odlegości od 15 do 30 mil od drogi 'I275'
+e)Znajdz wszystkie miasta w odlegości od 15 do 30 mil od drogi 'I275'
 
-f)      Itp. (własne przykłady)
+f)Itp. (własne przykłady)
 
 
 > Wyniki, zrzut ekranu, komentarz
@@ -335,31 +352,31 @@ Znajdz 5 miast najbliższych drogi I4
 
 ```sql
 SELECT c.city, c.state_abrv, c.location
-FROM us_interstates i, us_cities c 
+FROM us_interstates i,
+     us_cities c
 WHERE i.interstate = 'I4'
-AND sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE';
+  AND sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE';
 ```
 
->Wyniki, zrzut ekranu, komentarz
+> Wyniki, zrzut ekranu, komentarz
 
 ```sql
 --  ...
 ```
 
-
 Dodatkowo:
 
-a)     Znajdz kilka miast najbliższych rzece Mississippi
+a)Znajdz kilka miast najbliższych rzece Mississippi
 
-b)    Znajdz 3 miasta najbliżej Nowego Jorku
+b)Znajdz 3 miasta najbliżej Nowego Jorku
 
-c)     Znajdz kilka jednostek administracyjnych (us_counties) z których jest najbliżej do Nowego Jorku
+c)Znajdz kilka jednostek administracyjnych (us_counties) z których jest najbliżej do Nowego Jorku
 
-d)    Znajdz 5 najbliższych miast od drogi  'I170', podaj odległość do tych miast
+d)Znajdz 5 najbliższych miast od drogi'I170', podaj odległość do tych miast
 
-e)    Znajdz 5 najbliższych dużych miast (o populacji powyżej 300 tys) od drogi  'I170'
+e)Znajdz 5 najbliższych dużych miast (o populacji powyżej 300 tys) od drogi'I170'
 
-f)      Itp. (własne przykłady)
+f)Itp. (własne przykłady)
 
 
 > Wyniki, zrzut ekranu, komentarz
@@ -369,36 +386,33 @@ f)      Itp. (własne przykłady)
 --  ...
 ```
 
-
 # Zadanie 7
 
 Oblicz długość drogi I4
 
 ```sql
-SELECT SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+SELECT SDO_GEOM.SDO_LENGTH(geom, 0.5, 'unit=kilometer') length
 FROM us_interstates
 WHERE interstate = 'I4';
 ```
 
-
->Wyniki, zrzut ekranu, komentarz
+> Wyniki, zrzut ekranu, komentarz
 
 ```sql
 --  ...
 ```
 
-
 Dodatkowo:
 
-a)     Oblicz długość rzeki Mississippi
+a)Oblicz długość rzeki Mississippi
 
-b)    Która droga jest najdłuższa/najkrótsza
+b)Która droga jest najdłuższa/najkrótsza
 
-c)     Która rzeka jest najdłuższa/najkrótsza
+c)Która rzeka jest najdłuższa/najkrótsza
 
-d)    Które stany mają najdłuższą granicę
+d)Które stany mają najdłuższą granicę
 
-e)    Itp. (własne przykłady)
+e)Itp. (własne przykłady)
 
 
 > Wyniki, zrzut ekranu, komentarz
@@ -411,14 +425,14 @@ e)    Itp. (własne przykłady)
 Oblicz odległość między miastami Buffalo i Syracuse
 
 ```sql
-SELECT SDO_GEOM.SDO_DISTANCE ( c1.location, c2.location, 0.5) distance
-FROM us_cities c1, us_cities c2
-WHERE c1.city = 'Buffalo' and c2.city = 'Syracuse';
+SELECT SDO_GEOM.SDO_DISTANCE(c1.location, c2.location, 0.5) distance
+FROM us_cities c1,
+     us_cities c2
+WHERE c1.city = 'Buffalo'
+  and c2.city = 'Syracuse';
 ```
 
-
-
->Wyniki, zrzut ekranu, komentarz
+> Wyniki, zrzut ekranu, komentarz
 
 ```sql
 --  ...
@@ -426,23 +440,23 @@ WHERE c1.city = 'Buffalo' and c2.city = 'Syracuse';
 
 Dodatkowo:
 
-a)     Oblicz odległość między miastem Tampa a drogą I4
+a)Oblicz odległość między miastem Tampa a drogą I4
 
-b)    Jaka jest odległość z między stanem Nowy Jork a  Florydą
+b)Jaka jest odległość z między stanem Nowy Jork a Florydą
 
-c)     Jaka jest odległość z między miastem Nowy Jork a  Florydą
+c)Jaka jest odległość z między miastem Nowy Jork a Florydą
 
-d)    Podaj 3 parki narodowe do których jest najbliżej z Nowego Jorku, oblicz odległości do tych parków
+d)Podaj 3 parki narodowe do których jest najbliżej z Nowego Jorku, oblicz odległości do tych parków
 
-e)    Przetestuj działanie funkcji
+e)Przetestuj działanie funkcji
 
-a.     sdo_intersection, sdo_union, sdo_difference
+a. sdo_intersection, sdo_union, sdo_difference
 
-b.     sdo_buffer
+b. sdo_buffer
 
-c.     sdo_centroid, sdo_mbr, sdo_convexhull, sdo_simplify
+c. sdo_centroid, sdo_mbr, sdo_convexhull, sdo_simplify
 
-f)      Itp. (własne przykłady)
+f)Itp. (własne przykłady)
 
 
 > Wyniki, zrzut ekranu, komentarz
@@ -452,13 +466,12 @@ f)      Itp. (własne przykłady)
 --  ...
 ```
 
-
 Zadanie 8
 
 Wykonaj kilka własnych przykładów/analiz
 
 
->Wyniki, zrzut ekranu, komentarz
+> Wyniki, zrzut ekranu, komentarz
 
 ```sql
 --  ...
@@ -466,15 +479,15 @@ Wykonaj kilka własnych przykładów/analiz
 
 Punktacja
 
-|   |   |
-|---|---|
-|zad|pkt|
-|1|0,5|
-|2|1|
-|3|1|
-|4|1|
-|5|3|
-|6|3|
-|7|6|
-|8|4|
-|razem|20|
+|       |     |
+|-------|-----|
+| zad   | pkt |
+| 1     | 0,5 |
+| 2     | 1   |
+| 3     | 1   |
+| 4     | 1   |
+| 5     | 3   |
+| 6     | 3   |
+| 7     | 6   |
+| 8     | 4   |
+| razem | 20  |
