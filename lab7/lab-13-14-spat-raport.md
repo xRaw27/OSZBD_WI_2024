@@ -602,23 +602,95 @@ FROM us_interstates
 WHERE interstate = 'I4';
 ```
 
-
 >Wyniki, zrzut ekranu, komentarz
 
-```sql
---  ...
-```
+Wynik:
 
+![img_1.png](zad7/img_1.png)
 
 Dodatkowo:
 
 a)     Oblicz długość rzeki Mississippi
 
+Zapytanie:
+```sql
+SELECT SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+FROM us_rivers
+WHERE name = 'Mississippi';
+```
+
+Wynik:
+
+![img.png](zad7/img.png)
+
 b)    Która droga jest najdłuższa/najkrótsza
+
+Zapytanie:
+```sql
+-- Najdłuższa
+SELECT interstate, SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+FROM us_interstates
+ORDER BY length desc
+FETCH NEXT 1 ROW ONLY;
+
+-- Najkrótsza
+SELECT interstate, SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+FROM us_interstates
+ORDER BY length
+FETCH NEXT 1 ROW ONLY;
+```
+
+Wyniki:
+
+![img_5.png](zad7/img_5.png)
+
+![img_6.png](zad7/img_6.png)
 
 c)     Która rzeka jest najdłuższa/najkrótsza
 
+Zapytanie:
+```sql
+-- Najdłuższa
+SELECT name, SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+FROM us_rivers
+ORDER BY length desc
+FETCH NEXT 1 ROW ONLY;
+
+-- Najkrótsza
+SELECT name, SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer') length
+FROM us_rivers
+ORDER BY length
+FETCH NEXT 1 ROW ONLY;
+```
+
+Wyniki:
+
+![img_3.png](zad7/img_3.png)
+
+![img_4.png](zad7/img_4.png)
+
+
+Komentarz:
+o ile w przypadku dróg wynik był stosunkowo poprawny, to rzeki w wykorzystywanej bazie nie zawsze są reprezentowane jako zwykła
+krzywa, ale czasem mają bardziej złożony kształt przez co otrzymany wynik (długość krzywej) nie do końca pokrywa się z długością rzeki
+która podawana jest w innych źródłach. Przykład takiego fragmentu rzeki został przedstawiony poniżej:
+
+![img_2.png](zad7/img_2.png)
+
 d)    Które stany mają najdłuższą granicę
+
+Zapytanie:
+```sql
+SELECT s.state, ss.state, SDO_GEOM.SDO_LENGTH(SDO_GEOM.SDO_INTERSECTION(s.geom, ss.geom, 0.5), 0.5,'unit=kilometer') as length
+FROM US_STATES s, US_STATES ss
+WHERE s.id != ss.id AND SDO_GEOM.SDO_LENGTH(SDO_GEOM.SDO_INTERSECTION(s.geom, ss.geom, 0.5), 0.5,'unit=kilometer') IS NOT NULL
+ORDER BY length desc
+FETCH NEXT 1 ROW ONLY;
+```
+
+Wynik:
+
+![img_7.png](zad7/img_7.png)
 
 e)    Itp. (własne przykłady)
 
