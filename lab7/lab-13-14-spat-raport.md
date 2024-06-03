@@ -375,24 +375,22 @@ WHERE interstate = 'I4'
 SELECT * FROM us_states
 WHERE state_abrv = 'FL'
 
-SELECT c.city, c.state_abrv, c.location 
+SELECT c.city, c.state_abrv, c.location
 FROM us_cities c
-WHERE ROWID IN 
-( 
+WHERE ROWID IN
+(
 SELECT c.rowid
-FROM us_interstates i, us_cities c 
+FROM us_interstates i, us_cities c
 WHERE i.interstate = 'I4'
-AND sdo_within_distance (c.location, i.geom,'distance=50 unit=mile')
-)
+AND sdo_within_distance (c.location, i.geom,'distance=50 unit=mile') = 'TRUE'
+);
 ```
 
 
 
 > Wyniki, zrzut ekranu, komentarz
 
-```sql
---  ...
-```
+![img.png](zad5/img.png)
 
 
 Dodatkowo:
@@ -413,9 +411,145 @@ f)      Itp. (własne przykłady)
 > Wyniki, zrzut ekranu, komentarz
 > (dla każdego z podpunktów)
 
+a)
+
+Zapytanie:
 ```sql
---  ...
+SELECT c.county, c.geom
+FROM us_counties c
+WHERE ROWID IN
+(
+SELECT c.rowid
+FROM us_interstates i, us_counties c
+WHERE i.interstate = 'I4'
+AND SDO_ANYINTERACT (i.geom, c.geom ) = 'TRUE'
+);
 ```
+Wynik:
+
+![img_1.png](zad5/img_1.png)
+
+b)
+
+Zapytanie:
+```sql
+SELECT c.county, c.geom
+FROM us_counties c
+WHERE ROWID IN
+(
+SELECT c.rowid
+FROM us_interstates i, us_counties c
+WHERE i.interstate = 'I4'
+AND SDO_WITHIN_DISTANCE (i.geom, c.geom,'distance=10 unit=mile') = 'TRUE'
+);
+```
+
+Wynik:
+
+![img_2.png](zad5/img_2.png)
+
+c)
+
+Zapytanie:
+```sql
+SELECT r.name, r.geom
+FROM us_rivers r
+WHERE ROWID IN
+(
+SELECT r.rowid
+FROM us_interstates i, us_rivers r
+WHERE i.interstate = 'I4'
+AND SDO_ANYINTERACT (i.geom, r.geom ) = 'TRUE'
+);
+```
+
+Wynik:
+
+![img_3.png](zad5/img_3.png)
+
+d)
+
+Zapytanie:
+```sql
+SELECT i.interstate, i.geom
+FROM us_interstates i
+WHERE ROWID IN
+(
+SELECT i.rowid
+FROM us_interstates i, us_rivers r
+WHERE r.name = 'Mississippi'
+AND SDO_ANYINTERACT (i.geom, r.geom ) = 'TRUE'
+);
+```
+
+Wynik:
+
+![img_4.png](zad5/img_4.png)
+
+e)
+
+Zapytanie:
+
+```sql
+SELECT c.city, c.state_abrv, c.location
+FROM us_cities c
+WHERE ROWID IN
+(
+SELECT c.rowid
+FROM us_interstates i, us_cities c
+WHERE i.interstate = 'I275'
+AND SDO_WITHIN_DISTANCE(c.location, i.geom, 'distance=30 unit=mile') = 'TRUE'
+AND SDO_GEOM.SDO_DISTANCE(c.location, i.geom, 0.5, 'unit=mile') >= 15
+);
+```
+
+Wynik:
+
+![img_5.png](zad5/img_5.png)
+
+
+f)
+
+Przykład 1 - znaleźć wszystkie miasta, których odległość od rzeki Mississipi jest większa niż 500 mil
+
+Zapytanie:
+```sql
+SELECT c.city, c.state_abrv, c.location
+FROM us_cities c
+WHERE ROWID IN
+(
+SELECT c.rowid
+FROM us_cities c, us_rivers r
+WHERE r.name = 'Mississippi'
+AND SDO_GEOM.SDO_DISTANCE(c.location, r.geom, 0.5, 'unit=mile') > 500
+);
+```
+
+Wynik:
+
+![img_8.png](zad5/img_8.png)
+
+Przykład 2 - znaleźć rzeki, które przechodzą przez więcej niż 5 stanów
+
+Zapytanie:
+```sql
+SELECT r.name, r.geom
+FROM us_rivers r
+WHERE ROWID IN
+(
+SELECT r.rowid
+FROM us_rivers r, us_states s
+WHERE SDO_ANYINTERACT (r.geom, s.geom ) = 'TRUE'
+GROUP BY r.rowid
+HAVING count(*) > 5
+);
+```
+
+Wynik:
+
+![img_7.png](zad5/img_7.png)
+
+
 
 # Zadanie 6
 
