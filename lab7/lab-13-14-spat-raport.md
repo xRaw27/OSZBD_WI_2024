@@ -855,13 +855,35 @@ Wynik:
 
 e)    Itp. (własne przykłady)
 
-
-> Wyniki, zrzut ekranu, komentarz
-> (dla każdego z podpunktów)
+Łączna długość wszystkich dróg (interstates)
 
 ```sql
---  ...
+SELECT sum(SDO_GEOM.SDO_LENGTH (geom, 0.5,'unit=kilometer')) sum
+FROM us_interstates
 ```
+
+![img_15.png](zad7more/img_15.png)
+
+Łączna długość odcinków rzek w stanie Missouri
+
+```sql
+SELECT sum(SDO_GEOM.SDO_LENGTH(SDO_GEOM.SDO_INTERSECTION(s.geom, r.geom, 0.5), 0.5,'unit=kilometer')) sum
+FROM us_rivers r, us_states s
+WHERE s.state = 'Wyoming';
+```
+
+![img_20.png](zad7more/img_20.png)
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_INTERSECTION(s.geom, r.geom, 0.5))
+FROM us_rivers r, us_states s
+WHERE s.state = 'Wyoming'
+```
+
+![img_19.png](zad7more/img_19.png)
+
+#
+#
 
 Oblicz odległość między miastami Buffalo i Syracuse
 
@@ -875,37 +897,214 @@ WHERE c1.city = 'Buffalo' and c2.city = 'Syracuse';
 
 >Wyniki, zrzut ekranu, komentarz
 
-```sql
---  ...
-```
+Wynik:
+
+![img.png](zad7more/img.png)
 
 Dodatkowo:
 
 a)     Oblicz odległość między miastem Tampa a drogą I4
 
+Zapytanie:
+```sql
+SELECT SDO_GEOM.SDO_DISTANCE (c.location, i.geom, 0.5) distance
+FROM us_cities c, us_interstates i
+WHERE c.city = 'Tampa' and i.interstate = 'I4';
+```
+
+Wynik:
+
+![img_1.png](zad7more/img_1.png)
+
 b)    Jaka jest odległość z między stanem Nowy Jork a  Florydą
+
+Zapytanie:
+```sql
+SELECT SDO_GEOM.SDO_DISTANCE (s.geom, ss.geom, 0.5) distance
+FROM us_states s, us_states ss
+WHERE s.state = 'New York' and ss.state  = 'Florida';
+```
+
+Wynik:
+
+![img_2.png](zad7more/img_2.png)
+
 
 c)     Jaka jest odległość z między miastem Nowy Jork a  Florydą
 
+Zapytanie:
+```sql
+SELECT SDO_GEOM.SDO_DISTANCE (c.location, ss.geom, 0.5) distance
+FROM us_cities c, us_states ss
+WHERE c.city = 'New York' and ss.state  = 'Florida';
+```
+
+Wynik:
+
+![img_3.png](zad7more/img_3.png)
+
+
 d)    Podaj 3 parki narodowe do których jest najbliżej z Nowego Jorku, oblicz odległości do tych parków
+
+Zapytanie:
+```sql
+SELECT p.name, SDO_GEOM.SDO_DISTANCE (c.location, p.geom, 0.5) distance
+FROM us_cities c, us_parks p
+WHERE c.city = 'New York'
+ORDER BY distance
+FETCH NEXT 3 ROWS ONLY;
+```
+
+Wynik:
+
+![img_4.png](zad7more/img_4.png)
+
 
 e)    Przetestuj działanie funkcji
 
 a.     sdo_intersection, sdo_union, sdo_difference
 
+sdo_intersection stanów Floryda i Georgia
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_INTERSECTION(s.geom, ss.geom, 0.5))
+FROM us_states s, us_states ss
+WHERE s.state = 'Florida' and ss.state = 'Georgia'
+```
+
+![img_5.png](zad7more/img_5.png)
+
+sdo_union stanów Floryda i Georgia
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_UNION(s.geom, ss.geom, 0.5))
+FROM us_states s, us_states ss
+WHERE s.state = 'Florida' and ss.state = 'Georgia'
+```
+
+![img_6.png](zad7more/img_6.png)
+
+sdo_difference stanu Floryda z Parkiem Big Cypress NPRES
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_DIFFERENCE(s.geom, p.geom, 0.5))
+FROM us_states s, us_parks p
+WHERE s.state='Florida' and p.name='Big Cypress NPRES'
+```
+
+![img_7.png](zad7more/img_7.png)
+
 b.     sdo_buffer
+
+sdo_buffer 100 mil wokół stanu Floryda 
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_BUFFER(s.geom, 100, 0.5, 'unit=mile'))
+FROM us_states s
+WHERE s.state='Florida'
+```
+
+![img_8.png](zad7more/img_8.png)
 
 c.     sdo_centroid, sdo_mbr, sdo_convexhull, sdo_simplify
 
-f)      Itp. (własne przykłady)
-
-
-> Wyniki, zrzut ekranu, komentarz
-> (dla każdego z podpunktów)
+sdo_centroid (centroid geometrii) stanu Floryda
 
 ```sql
---  ...
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_CENTROID(s.geom, 0.5))
+FROM us_states s
+WHERE s.state='Florida'
 ```
+
+![img_9.png](zad7more/img_9.png)
+
+sdo_mbr (najmniejszy prostokąt obejmujący geometrię) dla stanu Floryda
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_MBR(s.geom))
+FROM us_states s
+WHERE s.state='Florida'
+```
+
+![img_10.png](zad7more/img_10.png)
+
+sdo_convexhull (otoczka wypukła geometrii) dla stanu Floryda
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_CONVEXHULL(s.geom))
+FROM us_states s
+WHERE s.state='Florida'
+```
+
+![img_11.png](zad7more/img_11.png)
+
+sdo_simplify uproszczona geometria stanu Floryda za pomocą algorytmu Douglas-Peucker
+
+funkcja przyjmuje parametr treshhold od którego zależy stopień uproszczenia geometrii
+
+```
+threshold - Threshold value to be used for the geometry simplification. Should be a positive number. 
+(Zero causes the input geometry to be returned.) If the input geometry is geodetic, the 
+value is the number of meters; if the input geometry is non-geodetic, the value is the 
+number of units associated with the data. As the threshold value is decreased, the returned geometry is likely
+to be closer to the input geometry; as the threshold value is increased, fewer points are likely to be in 
+the returned geometry.
+```
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_UTIL.SIMPLIFY(s.geom, 10000))
+FROM us_states s
+WHERE s.state='Florida'
+```
+
+![img_12.png](zad7more/img_12.png)
+
+f)      Itp. (własne przykłady)
+
+Największa odległość między 2 miastami
+
+```sql
+SELECT c.city, cc.city, SDO_GEOM.SDO_DISTANCE (c.location, cc.location, 0.5) distance
+FROM us_cities c, us_cities cc
+ORDER BY distance desc
+FETCH NEXT 1 ROW ONLY;
+```
+
+![img_16.png](zad7more/img_16.png)
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOMETRY(
+        2002, 
+        8307, 
+        NULL, 
+        SDO_ELEM_INFO_ARRAY(1, 2, 1), 
+        SDO_ORDINATE_ARRAY(c.location.SDO_POINT.X, c.location.SDO_POINT.Y, cc.location.SDO_POINT.X, cc.location.SDO_POINT.Y)
+))
+FROM us_cities c, us_cities cc
+WHERE c.city='Honolulu CDP' and cc.city='Boston'
+
+SELECT sdo_util.to_wktgeometry(c.location) 
+FROM us_cities c 
+WHERE c.city='Honolulu CDP' or c.city='Boston'
+```
+
+![img_17.png](zad7more/img_17.png)
+
+Miasta które znajdują się w obrębie 100 mil od stanu Indiana lub wewnątrz 
+
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_BUFFER(s.geom, 100, 0.5, 'unit=mile'))
+FROM us_states s
+WHERE s.state='Indiana'
+```
+
+```sql
+SELECT  sdo_util.to_wktgeometry(c.location)
+FROM us_states s, us_cities c
+WHERE s.state='Indiana' and SDO_ANYINTERACT(c.location, SDO_GEOM.SDO_BUFFER(s.geom, 100, 0.5, 'unit=mile'))='TRUE'
+```
+
+![img_14.png](zad7more/img_14.png)
 
 
 Zadanie 8
