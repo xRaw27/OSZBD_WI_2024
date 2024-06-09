@@ -6,7 +6,7 @@
 
 ---
 
-**Imiona i nazwiska:**
+**Imiona i nazwiska: Wojciech Przybytek, Dariusz Piwowarski**
 
 --- 
 
@@ -912,12 +912,59 @@ Zadanie 8
 
 Wykonaj kilka własnych przykładów/analiz
 
-
->Wyniki, zrzut ekranu, komentarz
+a) Stan przez który przechodzi najwięcej rzek
 
 ```sql
---  ...
+SELECT s.state, COUNT(*) as river_count
+FROM us_states s, us_rivers r
+WHERE SDO_ANYINTERACT(s.geom, r.geom) = 'TRUE'
+GROUP BY s.state
+ORDER BY river_count DESC
+FETCH FIRST 1 ROWS ONLY;
+
+SELECT sdo_util.to_wktgeometry(s.geom)
+FROM us_states s
+where s.state = 'Alaska'
+
+SELECT sdo_util.to_wktgeometry(r.geom)
+FROM us_states s, us_rivers r
+WHERE SDO_ANYINTERACT(s.geom, r.geom) = 'TRUE' and s.state = 'Alaska'
 ```
+
+![img_1.png](zad8/img_1.png)
+![img.png](zad8/img.png)
+
+b) 5 największych miast USA i droga najbliżej każdego z nich
+
+```sql
+SELECT sdo_util.to_wktgeometry(c.LOCATION),
+       (select sdo_util.to_wktgeometry(GEOM)
+        from US_INTERSTATES i
+        order by SDO_GEOM.SDO_DISTANCE ( c.location, i.GEOM, 0.5)
+        fetch first 1 row only) as GEOM
+FROM US_CITIES c
+order by c.POP90 desc
+fetch first 5 rows only
+```
+![img_2.png](zad8/img_2.png)
+
+c) 5 stanów USA z największą łączną długością dróg
+
+```sql
+SELECT state,
+       total_interstate_length
+FROM (SELECT s.state,
+             SUM(SDO_GEOM.SDO_LENGTH(SDO_GEOM.SDO_INTERSECTION(i.geom, s.geom, 0.005),
+                                     0.005)) AS total_interstate_length
+      FROM us_states s,
+           us_interstates i
+      WHERE SDO_RELATE(s.geom, i.geom, 'mask=ANYINTERACT') = 'TRUE'
+      GROUP BY s.state)
+ORDER BY total_interstate_length DESC
+    FETCH FIRST 5 ROWS ONLY;
+```
+
+![img_3.png](zad8/img_3.png)
 
 Punktacja
 
