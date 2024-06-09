@@ -565,9 +565,20 @@ AND sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE';
 >Wyniki, zrzut ekranu, komentarz
 
 ```sql
---  ...
+select cc.city, cc.STATE_ABRV, cc.LOCATION
+from US_CITIES cc
+where cc.id in
+      (select c.id
+       from US_INTERSTATES i,
+            US_CITIES c
+       where i.INTERSTATE = 'I4'
+         and sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE');
+
+select i.GEOM from US_INTERSTATES i where i.INTERSTATE = 'I4';
 ```
 
+![img_1.png](zad6/img-2.png)
+![img_2.png](zad6/img_2.png)
 
 Dodatkowo:
 
@@ -587,10 +598,160 @@ f)      Itp. (własne przykłady)
 > Wyniki, zrzut ekranu, komentarz
 > (dla każdego z podpunktów)
 
+a) Pięć najbliższych miast rzeki Mississippi:
+
 ```sql
---  ...
+select cc.city, cc.STATE_ABRV, cc.LOCATION
+from US_CITIES cc
+where cc.id in
+      (select c.id
+       from US_RIVERS i,
+            US_CITIES c
+       where i.NAME = 'Mississippi'
+         and sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE');
+
+select i.GEOM from US_RIVERS i where i.NAME = 'Mississippi';
 ```
 
+![img.png](zad6/img-1.png)
+![img_3.png](zad6/img_3.png)
+
+b) 3 miasta najbliżej Nowego Jorku (w zapytaniu wybieramy 4 miasta, ponieważ miastem najbliżej Nowego Jorku jest 
+Nowy Jork, którego nie uwzględniamy)
+
+```sql
+select cc.city, cc.STATE_ABRV, cc.LOCATION
+from US_CITIES cc
+where cc.id in
+      (select c1.id
+       from US_CITIES c1,
+            US_CITIES c2
+       where c2.CITY = 'New York'
+         and c1.CITY != 'New York'
+         and sdo_nn(c1.location, c2.LOCATION, 'sdo_num_res=4') = 'TRUE');
+
+select i.LOCATION
+from US_CITIES i
+where i.CITY = 'New York';
+```
+
+![img_6.png](zad6/img_6.png)
+![img_5.png](zad6/img_5.png)
+
+c) 5 jednostek administacyjnych z których najbliżej do Nowego Jorku
+
+```sql
+select cc.COUNTY, cc.GEOM
+from US_COUNTIES cc
+where cc.id in
+      (select c1.id
+       from US_COUNTIES c1,
+            US_CITIES c2
+       where c2.CITY = 'New York'
+         and sdo_nn(c1.GEOM, c2.LOCATION, 'sdo_num_res=5') = 'TRUE');
+
+select i.LOCATION
+from US_CITIES i
+where i.CITY = 'New York';
+```
+
+![img_2.png](zad6/img-3.png)
+![img_8.png](zad6/img_8.png)
+
+d) 5 najbliższych miast od drogi 'I170'
+
+```sql
+-- query to select cities on map
+select cc.city, cc.STATE_ABRV, cc.LOCATION
+from US_CITIES cc
+where cc.id in
+      (select c.id
+       from US_INTERSTATES i,
+            US_CITIES c
+       where i.INTERSTATE = 'I170'
+         and sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE');
+
+-- query to show distance from city to road
+select cc.city, cc.STATE_ABRV, cc.LOCATION, SDO_GEOM.sdo_distance(cc.LOCATION, ii.GEOM, 0.01, 'unit=KM') as dist
+from US_CITIES cc,
+     US_INTERSTATES ii
+where ii.INTERSTATE = 'I170'
+  and cc.id in
+      (select c.id
+       from US_INTERSTATES i,
+            US_CITIES c
+       where i.INTERSTATE = 'I170'
+         and sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE');
+
+select i.GEOM
+from US_INTERSTATES i
+where i.INTERSTATE = 'I170';
+```
+
+![img_3.png](zad6/img-4.png)
+![img_10.png](zad6/img_10.png)
+
+e) 5 największych dużych miast od I170
+
+```sql
+select cc.city, cc.STATE_ABRV, cc.LOCATION
+from US_CITIES cc
+where cc.id in
+      (select c.id
+       from US_INTERSTATES i,
+            (select * from US_CITIES where POP90 > 300000) c
+       where i.INTERSTATE = 'I170'
+         and sdo_nn(c.location, i.geom, 1) = 'TRUE'
+         and ROWNUM <= 5);
+
+select i.GEOM
+from US_INTERSTATES i
+where i.INTERSTATE = 'I170';
+```
+
+![img_4.png](zad6/img-5.png)
+![img_12.png](zad6/img_12.png)
+
+f) 5 dróg najbliżej Nowego Jorku
+
+```sql
+select cc.INTERSTATE, cc.GEOM
+from US_INTERSTATES cc
+where cc.id in
+      (select c1.id
+       from US_INTERSTATES c1,
+            US_CITIES c2
+       where c2.CITY = 'New York'
+         and sdo_nn(c1.GEOM, c2.LOCATION, 'sdo_num_res=5') = 'TRUE');
+
+select i.LOCATION
+from US_CITIES i
+where i.CITY = 'New York';
+```
+
+![img_5.png](zad6/img-6.png)
+![img_14.png](zad6/img_14.png)
+
+g) 5 dlugich dróg (> 100km) najbliżej Nowego Jorku
+
+```sql
+select ii.id, ii.INTERSTATE, ii.GEOM
+from US_INTERSTATES ii
+where ii.id in (select i.id
+                from US_INTERSTATES i,
+                     US_CITIES c
+                where c.CITY = 'New York'
+                  and sdo_nn(i.GEOM, c.LOCATION, 1) = 'TRUE'
+                  and SDO_GEOM.SDO_LENGTH(i.geom, 0.5, 'unit=kilometer') > 100
+                  and rownum <= 5);
+
+select i.LOCATION
+from US_CITIES i
+where i.CITY = 'New York';
+```
+
+![img_6.png](zad6/img-7.png)
+![img_16.png](zad6/img_16.png)
 
 # Zadanie 7
 
